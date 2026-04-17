@@ -2,16 +2,16 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "Menu Extraction Schema",
     "type": "object",
-    "description": "Schema for menu extraction. The fields requested in natural language will be augmented into a prompt for a downstream LLM, so they must contain the complete information needed for later structuring. Rely on visual cues and layout more than markdown order when deciding what belongs together. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must always be captured when they apply. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. Any field intended for natural language should contain enough complete information for downstream structuring, not just fragments or keywords.",
+    "description": "Schema for menu extraction. The fields requested in natural language will be augmented into a prompt for a downstream LLM, so they must contain the complete information needed for later structuring. Markdown chunks may be jumbled, so rely on visual cues, layout, and semantic understanding more than markdown order when deciding what belongs together. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must always be captured when they apply. Any field intended for natural language should contain enough complete information for downstream structuring, not just fragments or keywords. Do not create a shared section when the information applies to only one category; in that case, keep it inside that category's `category_modifiables`.",
     "required": [
-        "global_modifiables",
+        "global_hours",
         "categories"
     ],
     "additionalProperties": false,
     "properties": {
-        "global_modifiables": {
+        "global_hours": {
             "type": "string",
-            "description": "Only the information that is truly global to the menu and may need to be brought down later to categories by a downstream LLM. Do not place information here merely because it is repeated across several categories. Keep repeated cross-category information in the relevant categories unless it is clearly global to the whole menu. This field is for complete menu-level information such as descriptions, hours, disclaimers, pricing rules, options, toppings, sizes, and other information that genuinely applies at the global level. If there are truly global pricing rules, explain how they work and not just the printed amounts. Use enough detail for downstream structuring, not just fragments or keywords."
+            "description": "The global operating hours applying to the whole menu, if present, must be extracted here. Use this field only for operating hours that genuinely apply at the whole-menu level."
         },
         "categories": {
             "type": "array",
@@ -46,7 +46,7 @@
                             "shared_modifiers_section",
                             "mixed_shared_section"
                         ],
-                        "description": "Role of this category or section within the menu structure. Use `normal_category` for a regular category. Use one of the shared section roles when the extracted section is actually a shared sizes, options, toppings, modifiers, or mixed shared section rather than a normal item category."
+                        "description": "Role of this category or section within the menu structure. Use `normal_category` for a regular category. Use one of the shared section roles only when the extracted section is actually a shared sizes, options, toppings, modifiers, or mixed shared section rather than a normal item category. A shared section should apply to multiple categories; if the information applies to only one category, keep it in that category as `normal_category` and place the information in that category's `category_modifiables`."
                     },
                     "category_description": {
                         "type": "string",
@@ -54,18 +54,18 @@
                     },
                     "category_modifiables": {
                         "type": "string",
-                        "description": "All sizes, options, toppings, prices, hours, category descriptions, shared rules, and other information that applies to the whole category or to part of the category, excluding anything that is only for an individual item. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must be captured when they apply here. If pricing needs explanation, explain how it works instead of only repeating printed amounts. If a size table, option table, toppings table, or modifier block visually appears as a separate section but applies to this category, mention that clearly here and identify the relevant section relationship. Use enough detail for downstream structuring, not just fragments or keywords."
+                        "description": "All sizes, options, toppings, prices, hours, category descriptions, shared rules, and other information that applies to the whole category or to part of the category, excluding anything that is only for an individual item. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must be captured when they apply here. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. If a size table, option table, toppings table, or modifier block visually appears as a separate section but applies only to this category, include that information here instead of creating a separate shared section. If such a section truly applies to multiple categories, mention that clearly here and identify the relevant section relationship. If a category does not show its own pricing structure, it most likely depends on a shared section and should refer to that shared section unless pricing is truly absent from the menu. Use enough detail for downstream structuring, not just fragments or keywords."
                     },
                     "applies_to_category_refs": {
                         "type": "array",
-                        "description": "Structured references to the categories this section applies to when this category is acting as a shared sizes, options, toppings, modifiers, or mixed shared section. Populate this when a shared section applies to one or more normal categories.",
+                        "description": "Structured references to the categories this section applies to when this category is acting as a shared sizes, options, toppings, modifiers, or mixed shared section. Populate this only when a shared section truly applies to multiple normal categories. A shared section should not stand alone without applying to category entries, and should not be used when the information applies to just one category.",
                         "items": {
                             "type": "string"
                         }
                     },
                     "modifiables_defined_in_category_refs": {
                         "type": "array",
-                        "description": "Structured references to other categories or sections where the shared sizes, options, toppings, modifiers, or other shared modifiables for this category are actually defined. Populate this when this normal category depends on separately extracted shared sections.",
+                        "description": "Structured references to other categories or sections where the shared sizes, options, toppings, modifiers, or other shared modifiables for this category are actually defined. Populate this when this normal category depends on separately extracted shared sections. If a category lacks its own clear pricing structure, it should usually point to the relevant shared section here unless pricing is truly absent from the menu.",
                         "items": {
                             "type": "string"
                         }
@@ -92,7 +92,7 @@
                                 },
                                 "item_modifiables": {
                                     "type": "string",
-                                    "description": "All sizes, options, toppings, substitutions, add-ons, hours, pricing structure, and other information that applies specifically to this individual item. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must be captured when they apply to this item. Include the base pricing if present and explain any changes due to sizes, variants, modifiers, add-ons, or other item-level pricing logic. If the item relies on category-level or shared-section modifiers, make that clear here. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. Use enough detail for downstream structuring, not just fragments or keywords."
+                                    "description": "All sizes, options, toppings, substitutions, add-ons, hours, pricing structure, and other information that applies specifically to this individual item. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must be captured when they apply to this item. Include the base pricing if present and explain any changes due to sizes, variants, modifiers, add-ons, or other item-level pricing logic. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. If the item relies on category-level or shared-section modifiers, make that clear here. Use enough detail for downstream structuring, not just fragments or keywords."
                                 }
                             }
                         }
