@@ -1,0 +1,107 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Hyv3 Schema",
+    "type": "object",
+    "description": "Schema for menu extraction. The fields requested in natural language will be augmented into a prompt for a downstream LLM, so they must contain the complete information needed for later structuring. Rely on visual cues and layout more than markdown order when deciding what belongs together. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must always be captured when they apply. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. Any field intended for natural language should contain enough complete information for downstream structuring, not just fragments or keywords.",
+    "required": [
+        "categories"
+    ],
+    "properties": {
+        "global_hours": {
+            "type": "string",
+            "description": "Quote specific sections of the menu that list global operating hours. Leave empty if no global hours are listed."
+        },
+        "categories": {
+            "type": "array",
+            "title": "Category Blocks",
+            "description": "List of menu categories. EXTRACTION RULES: 1. Spatial Region: Derive the block from the spatial region anchored to the heading. Use bounding boxes and layout analysis to reconstruct the region, as ADE markdown may be jumbled. 2. Neighboring Content: Include ALL content that visually and semantically belongs to this category, even if it is in a neighboring section (e.g., sidebars, separate pricing tables, footers). 3. Valid Headings: Only keep headings that clearly supervise a cluster of items. Reject standalone dish names, option labels, or marketing banners. 4. Content Scope: Capture all items, add-ons, and disclaimers within the region. Do not leak content from unrelated neighboring categories.",
+            "items": {
+                "type": "object",
+                "required": [
+                    "category_name",
+                    "category_description",
+                    "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "category_name": {
+                        "type": "string",
+                        "description": "Category name exactly as printed."
+                    },
+                    "category_description": {
+                        "type": "string",
+                        "description": "Narrative text under heading. Capture verbatim text written ON THE MENU. Do NOT describe visual elements, symbols, or images. CRITICAL: Never miss important details like 'no substitution allowed'. Leave empty if no description text is present for the heading."
+                    },
+                    "category_sizes": {
+                        "type": "string",
+                        "description": "Describe in natural language only the sizes that are shared by the whole category and not sizes that apply only to individual items. Include the actual shared sizes and their pricing or size structure in the response. If the sizes applying to this category are written in a separate section, do not merely refer to that section; repeat the full natural-language size description here."
+                    },
+                    "category_options": {
+                        "type": "string",
+                        "description": "Describe in natural language any possible modification to the items that applies to the whole category and not to individual items only. Include shared options, modifiers, substitutions, sauces, add-ons, or other category-wide changes here. Explain how the pricing works when it needs explanation, especially when the pricing depends on size. Never miss written min/max constraints when they are present. If the options applying to this category are written in a separate section, do not merely refer to that section; repeat the full natural-language option description here."
+                    },
+                    "category_toppings": {
+                        "type": "array",
+                        "description": "Output category-level toppings as an array of strings where each string is one topping group written in natural language. If a heading is present for a cluster of toppings, use that heading as a topping group. If the toppings are not divided into groups, output all of them in a single group called toppings. Repeat the pricing rules in natural language and never miss a topping's half pricing when it is mentioned. Create one separate group for default toppings when the category explicitly lists toppings that already come on the item or product by default.",
+                        "items": {
+                            "type": "string",
+                            "description": ""
+                        }
+                    },
+                    "items": {
+                        "type": "array",
+                        "title": "Menu Items Extraction Schema (Flattened)",
+                        "description": "",
+                        "items": {
+                            "type": "object",
+                            "title": "Menu Item",
+                            "description": "",
+                            "required": [
+                                "name",
+                                "price"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "s_no": {
+                                    "type": "string",
+                                    "description": ""
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": ""
+                                },
+                                "price": {
+                                    "type": "number",
+                                    "description": "",
+                                    "minimum": 0
+                                },
+                                "options": {
+                                    "type": "string",
+                                    "description": "Describe in natural language only the options, modifiers, substitutions, sauces, add-ons, and other changes that apply to this particular individual item. Do not include options that belong only to the whole category unless they truly apply to this item as well. Explain how the pricing works when it needs explanation, especially when the pricing depends on size. Never miss written min/max constraints when they are present. If the option information for this item is written in a separate section, do not merely refer to that section; repeat the full natural-language option description here."
+                                },
+                                "itemDescription": {
+                                    "type": "string",
+                                    "description": ""
+                                },
+                                "toppings": {
+                                    "type": "array",
+                                    "description": "Output item-level toppings as an array of strings where each string is one topping group written in natural language. If a heading is present for a cluster of toppings, use that heading as a topping group. If the toppings are not divided into groups, output all of them in a single group called toppings. Repeat the pricing rules in natural language and never miss a topping's half pricing when it is mentioned. Create one separate group for default toppings when the item explicitly lists toppings that already come on the item by default.",
+                                    "items": {
+                                        "type": "string",
+                                        "description": ""
+                                    }
+                                },
+                                "ItemSizes": {
+                                    "type": "string",
+                                    "description": "Describe in natural language only the sizes that apply specifically to this individual item and not sizes that are shared by the whole category. Include the actual item-level sizes and their pricing or size structure in the response. If the sizes for this item are written in a separate section, do not merely refer to that section; repeat the full natural-language size description here."
+                                }
+                            }
+                        },
+                        "minItems": 1
+                    }
+                }
+            }
+        }
+    },
+    "additionalProperties": false
+}

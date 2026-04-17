@@ -1,0 +1,39 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Experimental Category-Narrative Menu Extraction Schema",
+    "type": "object",
+    "description": "Experimental schema for natural-language menu extraction. The extractor must not emit item lists. Instead, it should produce one natural-language response for global menu-level information and one natural-language response for each category or menu section. Within each category response, item names must appear in double quotation marks, and the prose should describe prices, sizes, options, toppings, modifiers, and how the items appear visually on the menu. Any important information must not be missed, especially prices, options, descriptions, sizes, shared rules, and other menu-defining details. When something is unclear, explain what it looks like visually and why that creates uncertainty. Do not invent information. Keep the writing concise while still covering all important facts.",
+    "required": [
+        "global_response",
+        "categories"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "global_response": {
+            "type": "string",
+            "description": "One natural-language response covering menu-wide information only. Use this for restaurant/menu identity, overall layout, hours, global disclaimers, repeated pricing rules, global notes, and anything that seems to apply across categories. Do not miss important menu-wide facts. Describe visual layout cues when they matter, such as columns, boxed notes, banners, repeated footers, or shared tables. Keep the response concise but complete."
+        },
+        "categories": {
+            "type": "array",
+            "description": "One narrative response per category or section, in visual reading order. Do not emit per-item arrays. Each category entry should contain a category name and one prose response covering all items and shared information in that category.",
+            "items": {
+                "type": "object",
+                "required": [
+                    "category_name",
+                    "response"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "category_name": {
+                        "type": "string",
+                        "description": "The category or section heading as best understood from the menu."
+                    },
+                    "response": {
+                        "type": "string",
+                        "description": "One natural-language response for this category only. Every item name mentioned in this response must be enclosed in double quotation marks. Describe the category's visual presentation, category-level description or notes, then walk through the items in visual order within prose. For each quoted item, describe its visible price or price pattern, any item description, any sizes or variants, any options, toppings, substitutions, or add-ons, and how the item appears on the menu, such as whether it is followed by a description, aligned with a right-side price, grouped under a shared size table, indented under a heading, or placed in a dense multi-column block. If a note, size table, or option list may apply to multiple items, explain that in prose and describe the visual cue. Never omit important information such as prices, descriptions, options, or sizes. Keep the response concise but complete."
+                    }
+                }
+            }
+        }
+    }
+}

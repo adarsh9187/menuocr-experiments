@@ -1,0 +1,72 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Menu Extraction Schema",
+    "type": "object",
+    "description": "Schema for menu extraction. This schema mixes structured anchors with natural-language modifiables. Use structured fields only for stable identity anchors such as category and item names. Use natural-language fields for shared or ambiguous information such as sizes, options, toppings, descriptions, hours, pricing rules, and other menu logic. The fields requested in natural language will be augmented into a prompt for a downstream LLM, so they must contain the complete information needed for later structuring. Rely on visual cues and layout more than markdown order when deciding what belongs together. If a modifier table or similar block visually looks like a separate section but actually applies to one or more other categories, extract it as modifiers inside all applicable categories themselves. Do not move information to the global level just because it is repeated across categories; keep repeated cross-category information at the category level unless it is truly global to the whole menu. Do not miss important information. Prices, options, descriptions, sizes, toppings, shared rules, and hours must always be captured. Keep the writing concise but complete. For pricing, do not merely repeat the printed amount when an explanation is needed; explain briefly how the price works.",
+    "required": [
+        "global_modifiables",
+        "categories"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "global_modifiables": {
+            "type": "string",
+            "description": "Natural-language description of only the information that is truly global to the menu and may need to be brought down later to categories by a downstream LLM. Do not place information here merely because it is repeated across several categories. Keep repeated cross-category information in the relevant categories unless it is clearly global to the whole menu. This field is for menu-level descriptions, hours, disclaimers, pricing rules, options, toppings, sizes, and other information that genuinely applies at the global level. If there are truly global pricing rules, explain briefly how they work, not just the amounts."
+        },
+        "categories": {
+            "type": "array",
+            "description": "Categories or sections in visual reading order.",
+            "items": {
+                "type": "object",
+                "required": [
+                    "category_name",
+                    "category_description",
+                    "category_modifiables",
+                    "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "category_name": {
+                        "type": "string",
+                        "description": "Category or section heading exactly as printed on the menu."
+                    },
+                    "category_description": {
+                        "type": "string",
+                        "description": "Verbatim category description exactly as printed on the menu for this category or section. Preserve the printed wording as closely as possible. Leave empty if the category has no printed description."
+                    },
+                    "category_modifiables": {
+                        "type": "string",
+                        "description": "Natural-language description of all sizes, options, toppings, prices, hours, category descriptions, shared rules, and other information that applies to the whole category or to part of the category, excluding anything that is only for an individual item. If the category has shared pricing logic, explain briefly how the pricing works, not just the printed amounts."
+                    },
+                        "items": {
+                            "type": "array",
+                            "description": "Items nested under this category, in visual order.",
+                            "items": {
+                                "type": "object",
+                                "required": [
+                                    "item_name",
+                                    "item_description",
+                                    "item_modifiables"
+                                ],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "item_name": {
+                                        "type": "string",
+                                        "description": "Name of the individual item as best understood from the menu."
+                                    },
+                                    "item_description": {
+                                        "type": "string",
+                                        "description": "Verbatim item description exactly as printed on the menu for this individual item. Preserve the printed wording as closely as possible. Leave empty if the item has no printed description."
+                                    },
+                                    "item_modifiables": {
+                                        "type": "string",
+                                        "description": "Natural-language description of all sizes, options, toppings, substitutions, add-ons, hours, pricing structure, and other information that applies specifically to this individual item. This field must explain how the pricing works for the item, not merely restate the printed price. Include the base pricing if present and explain any changes due to sizes, variants, modifiers, add-ons, or other item-level pricing logic. If the item has only a simple single price, say that briefly in words. If the pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained."
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    }
+}
