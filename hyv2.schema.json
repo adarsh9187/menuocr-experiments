@@ -15,7 +15,7 @@
         },
         "categories": {
             "type": "array",
-            "description": "Categories or sections in visual reading order. Do not create a shared section when the information applies to only one category; in that case, keep it inside that category's `category_modifiables`.",
+            "description": "Categories or sections in visual reading order. Do not create a shared section when the information applies to only one category; in that case, keep it inside that category's `category_modifiables`. Do not create duplicate categories. If a category does not show its own pricing structure, it most likely depends on a shared section and should refer to that shared section unless pricing is truly absent from the menu.",
             "items": {
                 "type": "object",
                 "required": [
@@ -30,11 +30,11 @@
                 "properties": {
                     "category_name": {
                         "type": "string",
-                        "description": "Category or section heading exactly as printed on the menu."
+                        "description": "Category or section heading exactly as printed on the menu. Never invent or paraphrase a category name."
                     },
                     "category_ref": {
                         "type": "string",
-                        "description": "Normalized local reference for this category or section. This is used so other categories or shared sections can refer to it in structured form during downstream processing."
+                        "description": "Normalized local reference for this category or section. This is used so other categories or shared sections can refer to it in structured form during downstream processing. Each category_ref must be unique within the menu. If two categories would otherwise produce the same reference, use numeric suffixes to deduplicate them."
                     },
                     "category_role": {
                         "type": "string",
@@ -54,7 +54,7 @@
                     },
                     "category_modifiables": {
                         "type": "string",
-                        "description": "All sizes, options, toppings, prices, operating hours, shared rules, and other information that applies to the whole category or to part of the category, excluding anything that is only for an individual item. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. If a size table, option table, toppings table, or modifier block visually appears as a separate section but applies only to this category, include that information here instead of creating a separate shared section. If such a section truly applies to multiple categories, mention that clearly here and identify the relevant section relationship. If a category does not show its own pricing structure, it most likely depends on a shared section and should refer to that shared section unless pricing is truly absent from the menu. Use enough detail for downstream structuring, not just fragments or keywords."
+                        "description": "All sizes, options, toppings, prices, operating hours, shared rules, and other information that applies to the whole category or to part of the category, excluding anything that is only for an individual item. For pricing, do not merely repeat the printed amount when an explanation is needed; explain how the pricing works. If pricing is confusing, ambiguous, incomplete, or visually hard to interpret, explain that clearly in the way a customer would need it explained. If a category lacks its own clear pricing structure, it most likely depends on a shared section and should refer to that shared section unless pricing is truly absent from the menu. Use enough detail for downstream structuring, not just fragments or keywords."
                     },
                     "applies_to_category_refs": {
                         "type": "array",
@@ -72,7 +72,7 @@
                     },
                     "items": {
                         "type": "array",
-                        "description": "Items nested under this category, in visual order.",
+                        "description": "Items nested under this category, in visual order. Extract ALL items that belong under this category.",
                         "items": {
                             "type": "object",
                             "required": [
@@ -84,7 +84,7 @@
                             "properties": {
                                 "item_name": {
                                     "type": "string",
-                                    "description": "Name of the individual item as best understood from the menu. Preserve the full printed item name."
+                                    "description": "Name of the individual item as best understood from the menu. Preserve the full printed item name. Always include the item serial number, alphabetic label, or alphanumeric serial in the item name whenever it is present on the menu."
                                 },
                                 "item_description": {
                                     "type": "string",
