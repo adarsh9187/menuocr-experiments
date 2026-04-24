@@ -113,6 +113,18 @@ def _drop_none_values(value: Any) -> Any:
     return value
 
 
+def _drop_description_properties(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            k: _drop_description_properties(v)
+            for k, v in value.items()
+            if k != "description"
+        }
+    if isinstance(value, list):
+        return [_drop_description_properties(v) for v in value]
+    return value
+
+
 def normalize_output_obj(output_obj: Dict[str, Any]) -> Dict[str, Any]:
     normalized = dict(output_obj)
     normalized["category_description"] = _normalize_text(normalized.get("category_description"))
@@ -274,7 +286,8 @@ def extract_json_object(text: str) -> Dict[str, Any]:
 
 def build_messages(subset_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     prompt_text = load_text(PROMPT_PATH)
-    schema_text = load_text(TARGET_SCHEMA_PATH)
+    raw_schema = json.loads(load_text(TARGET_SCHEMA_PATH))
+    schema_text = json.dumps(_drop_description_properties(raw_schema), indent=2, ensure_ascii=False)
     subset_text = json.dumps(subset_payload, indent=2, ensure_ascii=False)
     system = (
         "You convert menu extraction subsets into structured menu JSON. "

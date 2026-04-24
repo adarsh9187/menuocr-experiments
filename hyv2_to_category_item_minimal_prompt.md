@@ -1,4 +1,9 @@
-You are given a JSON input that contains:
+You are given a JSON input that was extracted by AI and may contain imperfect
+grouping or structure. You may restructure and correct the input as
+needed, following the rules below, in order to produce the best possible target
+JSON.
+
+The input contains:
 
 1. exactly one category entry with `category_role = "normal_category"`
 2. zero or more related shared sections with category roles from:
@@ -55,6 +60,15 @@ Mapping guidance:
   - enrich each item with item-level descriptions, prices, sizes, options, and
     toppings that can be derived from the target category and applicable shared
     sections
+  - if the category shows quantity-based bundle pricing followed by unpriced
+    choices, treat the quantity-price bundles as the main items
+  - for bundle pricing like `2 Rolls $10, 3 Rolls $12`, create main items such
+    as `2 Rolls` and `3 Rolls` with those prices
+  - then extract the selectable choices as item-level options for each created
+    bundle item, not as shared category options
+  - set the option cardinality to match the bundle quantity, for example
+    `minRequired=2, maxAllowed=2` for `2 Rolls`, and `minRequired=3,
+    maxAllowed=3` for `3 Rolls`
 
 Pricing guidance:
 
