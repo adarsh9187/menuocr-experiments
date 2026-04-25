@@ -37,3 +37,18 @@ Example:
 ```bash
 python experiments/run_nova_nl_extraction.py path/to/menu.pdf
 ```
+
+## Hyv2 Subset Transform
+
+The hyv2 subset transformer still runs from
+[hyv2_subset_to_category_minimal.py](/home/softsensor/AntiGrav/Menu/experiments/hyv2_subset_to_category_minimal.py),
+but its implementation is now organized under
+[hyv2_subset_to_category_minimal_pipeline](/home/softsensor/AntiGrav/Menu/experiments/hyv2_subset_to_category_minimal_pipeline).
+
+That folder separates:
+
+- CLI argument handling and error presentation
+- Azure OpenAI client/config resolution
+- prompt and schema message construction
+- output normalization
+- Pydantic response validation

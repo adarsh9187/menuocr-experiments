@@ -28,10 +28,10 @@ Important rules:
 1. Return JSON only.
 2. Do not include markdown fences.
 3. Do not invent information.
-4. Preserve verbatim printed category and item descriptions where the target
-   schema expects them.
-5. Convert natural-language modifiable text into structured fields only when the
-   information is stated clearly enough.
+4. Do not include free-text category or item descriptions in the final output.
+5. Use descriptions and modifiables as supporting evidence to derive
+   structured sizes, options, toppings, prices, and rules when the information
+   is stated clearly enough.
 6. If a shared section applies to the target category, fold that information
    into the target category output instead of preserving the shared section as a
    separate object.
@@ -45,21 +45,28 @@ Important rules:
 Mapping guidance:
 
 - `category_description`:
-  - use the target category's verbatim category description
+  - do not populate this field
 - `category_sizes`:
   - populate from shared size sections or category-level size information that
     applies to the target category
 - `category_options`:
   - populate from shared option/modifier sections or category-level options that
     apply to the target category
+  - infer options from both modifiables and descriptions
+  - if explicit min/max are not stated, default to `minRequired=0` and
+    `maxAllowed=2`
+  - if the option is essential to complete the order, use
+    `minRequired=1, maxAllowed=1`
 - `category_toppings`:
   - populate from shared topping sections or category-level topping information
     that applies to the target category
+  - infer toppings from both modifiables and descriptions
 - `items`:
   - create item entries from the target category's item list
-  - enrich each item with item-level descriptions, prices, sizes, options, and
+  - enrich each item with item-level prices, sizes, options, and
     toppings that can be derived from the target category and applicable shared
     sections
+  - infer item-level options and toppings from both modifiables and descriptions
   - if the category shows quantity-based bundle pricing followed by unpriced
     choices, treat the quantity-price bundles as the main items
   - for bundle pricing like `2 Rolls $10, 3 Rolls $12`, create main items such
