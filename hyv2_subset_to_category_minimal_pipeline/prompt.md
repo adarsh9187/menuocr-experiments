@@ -1,7 +1,6 @@
 You are given a JSON input that was extracted by AI and may contain imperfect
-grouping or structure. You may restructure and correct the input as
-needed, following the rules below, in order to produce the best possible target
-JSON.
+grouping or structure. You may restructure and correct the input as needed,
+following the rules below, in order to produce the best possible target JSON.
 
 The input contains:
 
@@ -28,63 +27,105 @@ Important rules:
 1. Return JSON only.
 2. Do not include markdown fences.
 3. Do not invent information.
-4. Do not include free-text category or item descriptions in the final output.
-5. Use descriptions and modifiables as supporting evidence to derive
-   structured sizes, options, toppings, prices, and rules when the information
-   is stated clearly enough.
-6. If a shared section applies to the target category, fold that information
+4. Return a complete response.
+5. Never skip any item, size, option, topping, modifier, or other modifiable
+   that is present in the input and can be represented in the target schema.
+6. Use descriptions and modifiables as supporting evidence to derive structured
+   sizes, options, toppings, prices, and rules when the information is stated
+   clearly enough.
+7. If a shared section applies to the target category, fold that information
    into the target category output instead of preserving the shared section as a
    separate object.
-7. If multiple shared sections contribute relevant information, merge them.
-8. Use the target category as the scope anchor for all decisions.
-9. Capture all important prices, sizes, options, toppings, and item-specific
+8. If multiple shared sections contribute relevant information, merge them.
+9. Use the target category as the scope anchor for all decisions.
+10. Capture all important prices, sizes, options, toppings, and item-specific
    rules that can be structured from the input subset.
-10. When in doubt, prefer preserving information in the closest valid target
-    field rather than dropping it.
+11. When in doubt, prefer preserving information in the closest valid target
+   field rather than dropping it.
 
-Mapping guidance:
+Placement and deduplication rules:
 
-- `category_description`:
-  - do not populate this field
-- `category_sizes`:
-  - populate from shared size sections or category-level size information that
-    applies to the target category
-- `category_options`:
-  - populate from shared option/modifier sections or category-level options that
-    apply to the target category
-  - infer options from both modifiables and descriptions
-  - if explicit min/max are not stated, default to `minRequired=0` and
-    `maxAllowed=2`
-  - if the option is essential to complete the order, use
-    `minRequired=1, maxAllowed=1`
-- `category_toppings`:
-  - populate from shared topping sections or category-level topping information
-    that applies to the target category
-  - infer toppings from both modifiables and descriptions
-- `items`:
-  - create item entries from the target category's item list
-  - enrich each item with item-level prices, sizes, options, and
-    toppings that can be derived from the target category and applicable shared
-    sections
-  - infer item-level options and toppings from both modifiables and descriptions
-  - if the category shows quantity-based bundle pricing followed by unpriced
-    choices, treat the quantity-price bundles as the main items
-  - for bundle pricing like `2 Rolls $10, 3 Rolls $12`, create main items such
-    as `2 Rolls` and `3 Rolls` with those prices
-  - then extract the selectable choices as item-level options for each created
-    bundle item, not as shared category options
-  - set the option cardinality to match the bundle quantity, for example
-    `minRequired=2, maxAllowed=2` for `2 Rolls`, and `minRequired=3,
-    maxAllowed=3` for `3 Rolls`
+- For fields that can appear at both category level and item level, place the
+  data at category level when it applies to the whole category.
+- Place the data at item level when it applies only to one specific item.
+- Make sure the final output covers the full applicable content of the input.
+- Do not omit any valid item-level or category-level information just because it
+  also appears alongside other structured data.
+- Do not create duplicates across category level and item level.
+- Do not repeat the same structured information more than once in the final
+  output.
 
-Pricing guidance:
+Descriptions:
+
+- Populate `category_description` from the input's category-level description
+  fields as-is.
+- Populate `itemDescription` from the input's item-level description fields
+  as-is.
+
+Pricing and sizes:
 
 - If an item has one clear direct price, use it as `price`.
-- If the item pricing is expressed entirely through item sizes, put the size
-  prices in `ItemSizes` and use `price` only for the main/default price when one
-  is clearly present.
+- If an item has sizes, `price` must be `0` and all prices must be populated in
+  `ItemSizes` or `category_sizes`, whichever is applicable.
+- If multiple prices exist for the same item or option, infer them as different
+  sizes whenever that is the best fit.
+- Understand and assign the correct size labels for those inferred prices.
+- If item pricing is expressed through sizes, put the size prices in
+  `ItemSizes`.
+- If category-wide pricing is expressed through shared sizes, place it in
+  `category_sizes`.
 - For option prices, convert them into `choicePrice` or `choicePriceBySize`.
 - Never invent negative prices.
+
+Options:
+
+- Populate options at category level when they apply to the whole category, and
+  at item level when they apply only to an individual item.
+- Do not duplicate the same options at both levels.
+- Infer options from both modifiables and description fields whenever the
+  structure is clear enough.
+- `optionName` is the modifier heading name and must be populated whenever
+  present.
+- If a heading is not explicitly present, generate an `optionName` that matches
+  the modifier heading implied by the choice.
+- `choiceName` is the specific selectable choice under that modifier heading.
+- Options must be created independently of each other by default.
+- Group choices under the same `optionName` only when the choices are mutually
+  exclusive.
+- If an essential component is mentioned and there are paid substitutions,
+  group them together and include the default essential component at price 0.
+- If explicit min/max are not stated, default to `minRequired=0` and
+  `maxAllowed=2`.
+- If the option is essential to complete the order, use
+  `minRequired=1, maxAllowed=1`.
+
+Toppings:
+
+- Populate toppings at category level when they apply to the whole category,
+  and at item level when they apply only to an individual item.
+- Do not duplicate the same toppings at both levels.
+- Infer toppings from both modifiables and description fields whenever the
+  structure is clear enough.
+- Default toppings are the toppings already on the item.
+- Available toppings are the toppings that can be added.
+- Always populate the `group` for available toppings using the heading that the
+  toppings belong to.
+- `priceHalf` is the half-topping price whenever that is listed.
+
+Items:
+
+- Create item entries from the target category's item list.
+- Enrich each item with item-level prices, sizes, options, and toppings that
+  can be derived from the target category and applicable shared sections.
+- If the category shows quantity-based bundle pricing followed by unpriced
+  choices, treat the quantity-price bundles as the main items.
+- For bundle pricing like `2 Rolls $10, 3 Rolls $12`, create main items such as
+  `2 Rolls` and `3 Rolls` with those prices.
+- Then extract the selectable choices as item-level options for each created
+  bundle item, not as shared category options.
+- Set the option cardinality to match the bundle quantity, for example
+  `minRequired=2, maxAllowed=2` for `2 Rolls`, and `minRequired=3,
+  maxAllowed=3` for `3 Rolls`.
 
 Output requirement:
 
