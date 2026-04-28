@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Menu Items Extraction Schema (Flattened)",
+  "type": "object",
+  "required": [
+    "category_description",
+    "items"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "category_description": {
+      "type": "string"
+    },
+    "category_sizes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "title": "Shared Size Entry",
+        "required": [
+          "Name",
+          "Price"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "Price": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "category_options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "title": "Shared Modifier Choice",
+        "required": [
+          "choiceName"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "optionName": {
+            "type": "string"
+          },
+          "minRequired": {
+            "type": "integer"
+          },
+          "maxAllowed": {
+            "type": "integer"
+          },
+          "choiceName": {
+            "type": "string"
+          },
+          "choicePrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "choicePriceBySize": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "price"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "sizeName": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "category_toppings": {
+      "type": "object",
+      "title": "Shared Pizza Toppings",
+      "properties": {
+        "default": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "available": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              },
+              "priceHalf": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "array",
+      "title": "Menu Items Extraction Schema (Flattened)",
+      "items": {
+        "type": "object",
+        "title": "Menu Item",
+        "required": [
+          "name",
+          "price"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "s_no": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "title": "Modifier Choice (Flattened)",
+              "required": [
+                "choiceName"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "optionName": {
+                  "type": "string"
+                },
+                "minRequired": {
+                  "type": "integer"
+                },
+                "maxAllowed": {
+                  "type": "integer"
+                },
+                "choiceName": {
+                  "type": "string"
+                },
+                "choicePrice": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "choicePriceBySize": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "price"
+                    ],
+                    "additionalProperties": true,
+                    "properties": {
+                      "sizeName": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "itemDescription": {
+            "type": "string"
+          },
+          "toppings": {
+            "type": "object",
+            "title": "Pizza Toppings (Pizza, Stromboli, Calzone Only)",
+            "properties": {
+              "default": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "available": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "group": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "priceHalf": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "ItemSizes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "title": "Size Entry",
+              "required": [
+                "Name",
+                "Price"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "Name": {
+                  "type": "string"
+                },
+                "Price": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

@@ -33,6 +33,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Azure OpenAI deployment to use.",
     )
     parser.add_argument(
+        "--generation-mode",
+        choices=["json_mode", "structured"],
+        default="json_mode",
+        help=(
+            "Generation strategy: 'json_mode' uses free JSON generation plus validation; "
+            "'structured' constrains generation with the Pydantic-derived JSON schema."
+        ),
+    )
+    parser.add_argument(
         "--temperature",
         type=float,
         default=0.0,
@@ -55,6 +64,7 @@ def run(argv: Optional[List[str]] = None) -> None:
     validated, usage = transform_subset(
         subset_payload=subset_payload,
         model_name=args.model,
+        generation_mode=args.generation_mode,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
     )
@@ -66,6 +76,7 @@ def run(argv: Optional[List[str]] = None) -> None:
         encoding="utf-8",
     )
     print(f"Wrote transformed payload to {output_path}")
+    print(f"Generation mode: {args.generation_mode}")
 
     prompt_tokens = usage.get("prompt_tokens")
     completion_tokens = usage.get("completion_tokens")
@@ -83,6 +94,14 @@ def main(argv: Optional[List[str]] = None) -> None:
         run(argv)
     except ValidationError as exc:
         raise SystemExit(f"Pydantic validation failed: {exc}") from exc
+    except requests.ConnectionError as exc:
+        raise SystemExit(
+            "Azure OpenAI connection failed. "
+            "This is usually a DNS, network, VPN, proxy, or endpoint-host issue.\n"
+            f"{exc}"
+        ) from exc
+    except requests.Timeout as exc:
+        raise SystemExit(f"Azure OpenAI request timed out: {exc}") from exc
     except requests.HTTPError as exc:
         body = exc.response.text if exc.response is not None else ""
         raise SystemExit(f"Azure OpenAI request failed: {exc}\n{body}") from exc

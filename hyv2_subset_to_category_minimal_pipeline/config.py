@@ -13,6 +13,7 @@ TARGET_SCHEMA_PATH = REPO_ROOT / "menuocr" / "schemas" / "category_item_minimal.
 PROMPT_PATH = PACKAGE_DIR / "prompt.md"
 
 ModelName = Literal["gpt-4o", "text-embedding-ada-002"]
+GenerationMode = Literal["json_mode", "structured"]
 
 MODEL_CONFIG: Dict[str, Dict[str, str]] = {
     "gpt-4o": {

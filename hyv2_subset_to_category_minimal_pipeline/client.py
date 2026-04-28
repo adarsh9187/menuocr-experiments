@@ -26,13 +26,11 @@ def resolve_chat_credentials(model_name: ModelName) -> Tuple[str, str]:
     return endpoint, api_key
 
 
-def call_azure_chat_completion(
+def _post_azure_chat_completion(
     *,
     endpoint: str,
     api_key: str,
-    messages: List[Dict[str, Any]],
-    temperature: float,
-    max_tokens: int,
+    payload: Dict[str, Any],
 ) -> Dict[str, Any]:
     response = requests.post(
         endpoint,
@@ -40,13 +38,65 @@ def call_azure_chat_completion(
             "Content-Type": "application/json",
             "api-key": api_key,
         },
-        json={
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def call_azure_chat_completion_json_mode(
+    *,
+    endpoint: str,
+    api_key: str,
+    messages: List[Dict[str, Any]],
+    temperature: float,
+    max_tokens: int,
+) -> Dict[str, Any]:
+    return _post_azure_chat_completion(
+        endpoint=endpoint,
+        api_key=api_key,
+        payload={
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
         },
-        timeout=300,
     )
-    response.raise_for_status()
-    return response.json()
+
+
+def call_azure_chat_completion_structured(
+    *,
+    endpoint: str,
+    api_key: str,
+    messages: List[Dict[str, Any]],
+    temperature: float,
+    max_tokens: int,
+    response_format: Dict[str, Any],
+) -> Dict[str, Any]:
+    return _post_azure_chat_completion(
+        endpoint=endpoint,
+        api_key=api_key,
+        payload={
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "response_format": response_format,
+        },
+    )
+
+
+def extract_response_content(response_json: Dict[str, Any]) -> str:
+    choices = response_json.get("choices") or []
+    if not choices:
+        raise ValueError("Azure OpenAI response did not include any choices.")
+
+    message = choices[0].get("message") or {}
+    refusal = message.get("refusal")
+    if refusal:
+        raise ValueError(f"Model refused the request: {refusal}")
+
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Azure OpenAI response did not include textual JSON content.")
+    return content
