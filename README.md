@@ -13,7 +13,7 @@ It mirrors the existing `menuocr` environment pattern:
 - loads `experiments/.env`
 - falls back to `menuocr/.env`
 - parses a menu file with ADE
-- extracts against the experimental natural-language schema
+- extracts against `hyv2.schema.json` by default
 
 Example:
 
@@ -22,6 +22,25 @@ python experiments/run_nl_extraction.py path/to/menu.pdf --save-markdown
 ```
 
 Outputs go to `experiments/outputs/` by default.
+
+## Hyv2 End-To-End CLI
+
+The orchestrated hyv2 pipeline lives in
+[run_hyv2_pipeline.py](/home/softsensor/AntiGrav/Menu/experiments/run_hyv2_pipeline.py).
+
+It:
+
+- runs ADE extraction with `hyv2.schema.json`
+- preprocesses zero-item referenced supercategories into shared modifier sections
+- builds one subset per real category
+- runs the subset-to-`category_item_minimal` transformer for each category
+- writes one aggregate JSON result by default
+
+Example:
+
+```bash
+python experiments/run_hyv2_pipeline.py path/to/menu.pdf --keep-intermediates
+```
 
 ## Nova Pro CLI
 

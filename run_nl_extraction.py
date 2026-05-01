@@ -15,6 +15,7 @@ Run from the repo root, for example:
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import sys
@@ -40,7 +41,7 @@ from ade_client import (  # noqa: E402
 )
 
 
-DEFAULT_SCHEMA_PATH = SCRIPT_DIR / "nl_menu_extraction.schema.json"
+DEFAULT_SCHEMA_PATH = SCRIPT_DIR / "hyv2.schema.json"
 DEFAULT_PROMPT_PATH = SCRIPT_DIR / "nl_menu_extraction_prompt.md"
 DEFAULT_OUTPUT_DIR = SCRIPT_DIR / "outputs"
 DEFAULT_ENV_PATH = SCRIPT_DIR / ".env"
@@ -143,13 +144,14 @@ def build_extraction_payload(
     if not isinstance(markdown, str):
         raise ADEClientError("ADE parse response missing 'markdown' field.")
 
-    extraction_payload = extract_with_schema(
-        markdown,
-        schema,
-        api_key=api_key,
-        markdown_filename=f"{document_path.stem}.md",
-        timeout_seconds=timeout_seconds,
-    )
+    extract_kwargs = {
+        "api_key": api_key,
+        "timeout_seconds": timeout_seconds,
+    }
+    if "markdown_filename" in inspect.signature(extract_with_schema).parameters:
+        extract_kwargs["markdown_filename"] = f"{document_path.stem}.md"
+
+    extraction_payload = extract_with_schema(markdown, schema, **extract_kwargs)
 
     extracted = extraction_payload.get("extraction", extraction_payload)
     return {
