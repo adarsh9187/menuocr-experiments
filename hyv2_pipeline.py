@@ -10,7 +10,6 @@ try:
     from .hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from .hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from .run_nl_extraction import (
-        DEFAULT_OUTPUT_DIR,
         DEFAULT_PROMPT_PATH,
         build_extraction_payload,
         resolve_api_key,
@@ -19,7 +18,6 @@ except ImportError:
     from hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from run_nl_extraction import (
-        DEFAULT_OUTPUT_DIR,
         DEFAULT_PROMPT_PATH,
         build_extraction_payload,
         resolve_api_key,
@@ -39,10 +37,12 @@ ExtractionBuilder = Callable[..., Dict[str, Any]]
 SubsetTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
 Logger = Callable[[str], None]
 
+PIPELINE_OUTPUT_DIR = Path(__file__).resolve().parent / "hyv2_subset_to_category_minimal_pipeline" / "outputs"
+
 
 def default_output_path(input_path: Path) -> Path:
-    DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return DEFAULT_OUTPUT_DIR / f"{input_path.stem}_hyv2_pipeline.json"
+    PIPELINE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return PIPELINE_OUTPUT_DIR / f"{input_path.stem}_hyv2_pipeline.json"
 
 
 def _sanitize_filename(value: str) -> str:
@@ -275,6 +275,9 @@ def run_hyv2_pipeline(
     category_runs: List[Dict[str, Any]] = []
     success_count = 0
     failure_count = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    total_tokens = 0
     for index, subset_run in enumerate(subset_runs, start=1):
         category_ref = subset_run["category_ref"]
         category_name = subset_run["category_name"]
@@ -309,11 +312,19 @@ def run_hyv2_pipeline(
             }
             category_runs.append(category_run)
             success_count += 1
-            total_tokens = usage.get("total_tokens")
+            prompt_tokens = usage.get("prompt_tokens")
+            completion_tokens = usage.get("completion_tokens")
+            run_total_tokens = usage.get("total_tokens")
+            if isinstance(prompt_tokens, int):
+                total_prompt_tokens += prompt_tokens
+            if isinstance(completion_tokens, int):
+                total_completion_tokens += completion_tokens
+            if isinstance(run_total_tokens, int):
+                total_tokens += run_total_tokens
             logger(
                 f"Category succeeded: {category_ref}; "
                 f"subset_size={len(subset_category_refs)}; "
-                f"total_tokens={total_tokens if total_tokens is not None else 'unknown'}"
+                f"total_tokens={run_total_tokens if run_total_tokens is not None else 'unknown'}"
             )
             if intermediates_dir is not None:
                 safe_ref = _sanitize_filename(category_ref)
@@ -350,6 +361,9 @@ def run_hyv2_pipeline(
             "rewrite_count": len(rewrites),
             "successful_category_runs": success_count,
             "failed_category_runs": failure_count,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens,
         },
     }
 
@@ -357,6 +371,7 @@ def run_hyv2_pipeline(
     _write_json(final_output_path, aggregate_payload)
     logger(
         "Pipeline summary:"
-        f" successes={success_count}, failures={failure_count}, output={final_output_path}"
+        f" successes={success_count}, failures={failure_count},"
+        f" total_tokens={total_tokens}, output={final_output_path}"
     )
     return final_output_path, aggregate_payload

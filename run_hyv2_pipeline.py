@@ -38,7 +38,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--output",
         type=Path,
         default=None,
-        help="Destination JSON file. Defaults to experiments/outputs/<stem>_hyv2_pipeline.json",
+        help=(
+            "Destination JSON file. Defaults to "
+            "experiments/hyv2_subset_to_category_minimal_pipeline/outputs/"
+            "<stem>_hyv2_pipeline.json"
+        ),
     )
     parser.add_argument(
         "--schema",

@@ -34,7 +34,8 @@ It:
 - preprocesses zero-item referenced supercategories into shared modifier sections
 - builds one subset per real category
 - runs the subset-to-`category_item_minimal` transformer for each category
-- writes one aggregate JSON result by default
+- writes one aggregate JSON result by default under
+  `experiments/hyv2_subset_to_category_minimal_pipeline/outputs/`
 
 Example:
 

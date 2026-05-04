@@ -82,8 +82,16 @@ Options:
 - Populate options at category level when they apply to the whole category, and
   at item level when they apply only to an individual item.
 - Do not duplicate the same options at both levels.
+- Prefer high recall for option extraction: create options wherever they are
+  reasonably supported by the input, including from item names, category names,
+  descriptions, and modifiables, even when the option is implied rather than
+  introduced by an explicit modifier heading.
 - Infer options from both modifiables and description fields whenever the
   structure is clear enough.
+- Treat item names and category names as evidence for options when they imply a
+  selectable variant, flavor, protein, preparation, sauce, crust, topping set,
+  or other modifier-like choice that a customer would reasonably understand as a
+  structured option.
 - `optionName` is the modifier heading name and must be populated whenever
   present.
 - If a heading is not explicitly present, generate an `optionName` that matches
