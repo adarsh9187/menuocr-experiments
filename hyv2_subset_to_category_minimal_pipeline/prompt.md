@@ -15,6 +15,30 @@ The input contains:
 Your job is to merge the information from this subset into a single JSON object
 matching the target `category_item_minimal.schema.json` format.
 
+About the input subset:
+
+- The target category and related shared sections may express important menu
+  logic in `category_modifiables`, `item_modifiables`, descriptions, item
+  names, and category names.
+- `category_modifiables` and `item_modifiables` are not guaranteed to be full
+  prose. They may be rich descriptive text, compact shorthand, fragments,
+  partial price strings, terse modifier labels, or mixed natural language plus
+  symbols.
+- You must semantically understand these fields rather than reading them
+  literally as plain descriptions. Use them to infer structure when supported by
+  the input.
+- In particular, distinguish carefully between:
+  - direct item prices
+  - item sizes
+  - category-wide sizes
+  - ordinary options
+  - toppings
+  - size-based option pricing
+- When the same short text could be interpreted in multiple ways, use the
+  surrounding category, shared sections, item names, descriptions, and pricing
+  patterns to determine whether it represents a size, an option, a topping, a
+  direct price, or a size-based option.
+
 Core task:
 
 - Treat the single `normal_category` as the target category.
@@ -67,6 +91,9 @@ Pricing and sizes:
 - If an item has one clear direct price, use it as `price`.
 - If an item has sizes, `price` must be `0` and all prices must be populated in
   `ItemSizes` or `category_sizes`, whichever is applicable.
+- If an item has a base price and also sizes, create a size entry named
+  `Regular` or `Standard` for the base price and include the other size entries
+  alongside it.
 - If multiple prices exist for the same item or option, infer them as different
   sizes whenever that is the best fit.
 - Understand and assign the correct size labels for those inferred prices.
@@ -83,8 +110,7 @@ Options:
   at item level when they apply only to an individual item.
 - Do not duplicate the same options at both levels.
 - Prefer high recall for option extraction: create options wherever they are
-  reasonably supported by the input, including from item names, category names,
-  descriptions, and modifiables, even when the option is implied rather than
+  reasonably supported by the input, including from item names, category names, descriptions, and modifiables, even when the option is implied rather than
   introduced by an explicit modifier heading.
 - Infer options from both modifiables and description fields whenever the
   structure is clear enough.
@@ -97,6 +123,8 @@ Options:
 - If a heading is not explicitly present, generate an `optionName` that matches
   the modifier heading implied by the choice.
 - `choiceName` is the specific selectable choice under that modifier heading.
+- If an option has size-based pricing, set `choicePrice` to `0` and populate
+  `choicePriceBySize` using the exact printed size labels from the input.
 - Options must be created independently of each other by default.
 - Group choices under the same `optionName` only when the choices are mutually
   exclusive.
