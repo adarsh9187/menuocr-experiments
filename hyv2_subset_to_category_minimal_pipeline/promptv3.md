@@ -24,7 +24,6 @@ About the input subset:
   - `category_options`
   - `category_toppings`
   - `category_pricing`
-  - `category_rules_or_notes`
   - `item_description`
   - `item_sizes`
   - `item_options`
@@ -95,6 +94,11 @@ Descriptions:
 
 - Populate `category_description` from the input's category-level description
   field as-is.
+- If there is any other important category-level information, note, hour,
+  disclaimer, included side, preparation note, or rule that does not fit
+  naturally into `category_sizes`, `category_options`, `category_toppings`, or
+  `category_pricing`, preserve that important information verbatim in
+  `category_description`.
 - Populate `itemDescription` from the input's item-level description field
   as-is.
 
@@ -115,6 +119,10 @@ Pricing and sizes:
   `category_sizes`.
 - Use `category_pricing`, `item_pricing`, `category_sizes`, and `item_sizes`
   together when deciding how prices and sizes should be structured.
+- The category-level descriptive fields are not just verbatim storage buckets:
+  `category_sizes`, `category_options`, `category_toppings`, and
+  `category_pricing` should read like clear natural-language explanations you
+  would give to a customer, while still preserving exact labels and prices.
 - For option prices, convert them into `choicePrice` or `choicePriceBySize`.
 - Never invent negative prices.
 

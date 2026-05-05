@@ -27,7 +27,6 @@
           "category_options",
           "category_toppings",
           "category_pricing",
-          "category_rules_or_notes",
           "items"
         ],
         "additionalProperties": false,
@@ -54,27 +53,23 @@
           },
           "category_description": {
             "type": "string",
-            "description": "Verbatim category description exactly as printed on the menu for this category or section. Preserve the printed wording as closely as possible. Leave empty if the category has no printed description. Do not paraphrase this field."
+            "description": "Verbatim category description exactly as printed on the menu for this category or section. Preserve the printed wording as closely as possible. Leave empty if the category has no printed description. Do not paraphrase this field. If there is any other important category-level information, note, hour, disclaimer, included side, preparation note, or rule that does not fit naturally into the sizes, options, toppings, or pricing fields, extract that important information verbatim here as well."
           },
           "category_sizes": {
             "type": "string",
-            "description": "Natural-language description of the sizes that apply to the whole category or shared section, not to one item only. Be descriptive and complete. Include exact size labels, pricing logic, quantity differences, and any ambiguity that matters for structuring. If the source is terse or fragmentary, explain what the text most likely means without inventing information."
+            "description": "Natural-language description of the sizes that apply to the whole category or shared section, not to one item only. Do not merely copy terse fragments or raw labels. Explain the size structure in the kind of natural language you would use to clearly explain it to a customer, while still preserving exact printed size labels and pricing details. Include quantity differences, pricing logic, and any ambiguity that matters for structuring. If the source is terse or fragmentary, explain what the text most likely means without inventing information."
           },
           "category_options": {
             "type": "string",
-            "description": "Natural-language description of options, modifiers, substitutions, add-ons, crust choices, protein choices, sauce choices, or other selectable changes that apply to the whole category or shared section. Be descriptive and complete. Include headings, implied choices, min/max rules, and any size-based option pricing if present."
+            "description": "Natural-language description of options, modifiers, substitutions, add-ons, crust choices, protein choices, sauce choices, or other selectable changes that apply to the whole category or shared section. Do not merely copy terse fragments or raw labels. Explain the options in the kind of natural language you would use to clearly explain them to a customer, while still preserving exact printed names, headings, min/max rules, implied choices, and any size-based option pricing if present."
           },
           "category_toppings": {
             "type": "string",
-            "description": "Natural-language description of toppings that apply to the whole category or shared section. Be descriptive and complete. Distinguish default toppings from available add-on toppings whenever the menu supports that distinction. Include pricing and half-topping information when present."
+            "description": "Natural-language description of toppings that apply to the whole category or shared section. Do not merely copy terse fragments or raw lists. Explain the topping choices in the kind of natural language you would use to clearly explain them to a customer, while still preserving exact printed topping names and pricing details. Distinguish default toppings from available add-on toppings whenever the menu supports that distinction. Include pricing and half-topping information when present."
           },
           "category_pricing": {
             "type": "string",
-            "description": "Natural-language description of category-level or shared pricing logic. Be descriptive and complete. Explain base prices, size prices, bundle prices, upcharges, included items, and any relationships between sizes, toppings, options, and final price. If the printed pricing is terse, fragmented, or visually hard to interpret, explain that clearly."
-          },
-          "category_rules_or_notes": {
-            "type": "string",
-            "description": "Natural-language description of all remaining category-level or shared rules, notes, hours, disclaimers, included sides, preparation notes, or other important information that is not already captured in the other category-level descriptive fields. Be descriptive and complete."
+            "description": "Natural-language description of category-level or shared pricing logic. Do not merely copy terse fragments or raw price strings. Explain the pricing in the kind of natural language you would use to clearly explain it to a customer, while still preserving exact prices, labels, and relationships. Include base prices, size prices, bundle prices, upcharges, included items, and any relationships between sizes, toppings, options, and final price. If the printed pricing is terse, fragmented, or visually hard to interpret, explain that clearly."
           },
           "applies_to_category_refs": {
             "type": "array",
