@@ -49,6 +49,10 @@ About the input subset:
   surrounding category, shared sections, item names, descriptions, and pricing
   patterns to determine whether it represents a size, an option, a topping, a
   direct price, or a size-based option.
+- Normalize size names consistently across the whole subset. If the menu uses
+  short forms or inconsistent variants such as `Sm`, `Small`, `Md`, `Medium`,
+  `Lg`, or `Large`, use one normalized size name consistently across
+  category-level size definitions and item-level size-based options.
 
 Core task:
 
@@ -110,6 +114,20 @@ Pricing and sizes:
 - If an item has a base price and also sizes, create a size entry named
   `Regular` or `Standard` for the base price and include the other size entries
   alongside it.
+- Treat size prices as full final prices for those sizes, not as incremental
+  upcharges.
+- If the menu gives one set of full prices for the base item by size and a
+  second set of full prices for an add-on or variant by those same sizes, keep
+  only the true base sizes in `ItemSizes` and create an option for the add-on
+  or variant instead of creating duplicate variant sizes.
+- In that pattern, `ItemSizes` should contain only the base item full prices by
+  size, and the add-on or variant should be represented as an option with
+  `choicePrice=0` and `choicePriceBySize` populated using the incremental
+  difference from the corresponding base size price.
+- For example, if Small is 4.99, Large is 8.99, Small with cheese is 7.99, and
+  Large with cheese is 11.99, then `ItemSizes` should remain Small 4.99 and
+  Large 8.99, while the cheese option should have size-based increments of 3.00
+  for Small and 3.00 for Large.
 - If multiple prices exist for the same item or option, infer them as different
   sizes whenever that is the best fit.
 - Understand and assign the correct size labels for those inferred prices.
@@ -147,6 +165,14 @@ Options:
 - `choiceName` is the specific selectable choice under that modifier heading.
 - If an option has size-based pricing, set `choicePrice` to `0` and populate
   `choicePriceBySize` using the exact printed size labels from the input.
+- When a variant or add-on is printed as full prices by size, do not copy those
+  full prices directly into `choicePriceBySize`. First determine the matching
+  base item size prices, then convert the variant pricing into incremental
+  differences for each size.
+- If the menu writes option prices as full final prices by option rather than
+  explicit increments, treat the cheapest applicable choice as the base price
+  and convert the more expensive choices into incremental differences relative
+  to that cheapest base choice.
 - Options must be created independently of each other by default.
 - Group choices under the same `optionName` only when the choices are mutually
   exclusive.
@@ -161,6 +187,8 @@ Toppings:
 
 - Populate toppings at category level when they apply to the whole category,
   and at item level when they apply only to an individual item.
+- Only populate toppings for pizzas, calzones, and strombolis. Do not populate
+  toppings for other category or item types.
 - Do not duplicate the same toppings at both levels.
 - Infer toppings from descriptive fields whenever the structure is clear enough.
 - Default toppings are the toppings already on the item.

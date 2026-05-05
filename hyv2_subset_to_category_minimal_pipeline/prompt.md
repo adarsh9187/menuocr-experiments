@@ -94,6 +94,18 @@ Pricing and sizes:
 - If an item has a base price and also sizes, create a size entry named
   `Regular` or `Standard` for the base price and include the other size entries
   alongside it.
+- If the menu gives one set of full prices for the base item by size and a
+  second set of full prices for an add-on or variant by those same sizes, keep
+  only the true base sizes in `ItemSizes` and create an option for the add-on
+  or variant instead of creating duplicate variant sizes.
+- In that pattern, `ItemSizes` should contain only the base item full prices by
+  size, and the add-on or variant should be represented as an option with
+  `choicePrice=0` and `choicePriceBySize` populated using the incremental
+  difference from the corresponding base size price.
+- For example, if Small is 4.99, Large is 8.99, Small with cheese is 7.99, and
+  Large with cheese is 11.99, then `ItemSizes` should remain Small 4.99 and
+  Large 8.99, while the cheese option should have size-based increments of 3.00
+  for Small and 3.00 for Large.
 - If multiple prices exist for the same item or option, infer them as different
   sizes whenever that is the best fit.
 - Understand and assign the correct size labels for those inferred prices.
@@ -125,6 +137,10 @@ Options:
 - `choiceName` is the specific selectable choice under that modifier heading.
 - If an option has size-based pricing, set `choicePrice` to `0` and populate
   `choicePriceBySize` using the exact printed size labels from the input.
+- When a variant or add-on is printed as full prices by size, do not copy those
+  full prices directly into `choicePriceBySize`. First determine the matching
+  base item size prices, then convert the variant pricing into incremental
+  differences for each size.
 - Options must be created independently of each other by default.
 - Group choices under the same `optionName` only when the choices are mutually
   exclusive.
