@@ -34,8 +34,28 @@ It:
 - preprocesses zero-item referenced supercategories into shared modifier sections
 - builds one subset per real category
 - runs the subset-to-`category_item_minimal` transformer for each category
-- writes one aggregate JSON result by default under
+- writes one descriptive/debug JSON result by default under
   `experiments/hyv2_subset_to_category_minimal_pipeline/outputs/`
+- writes one merged final JSON beside it containing only successful GPT category outputs
+
+Output files:
+
+- `<stem>_hyv2_pipeline.json`: descriptive/debug aggregate payload with stage-1 extraction, preprocessing, per-category runs, errors, and summary
+- `<stem>_hyv2_final.json`: merged final JSON with:
+
+```json
+{
+  "document_path": "...",
+  "Categories": [
+    {}
+  ]
+}
+```
+
+`--v3` switches:
+
+- stage 1 extraction to `hyv3.schema.json`
+- stage 2 subset transformation prompt to `promptv3.md`
 
 Example:
 

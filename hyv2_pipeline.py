@@ -10,7 +10,6 @@ try:
     from .hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from .hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from .run_nl_extraction import (
-        DEFAULT_PROMPT_PATH,
         build_extraction_payload,
         resolve_api_key,
     )
@@ -18,7 +17,6 @@ except ImportError:
     from hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from run_nl_extraction import (
-        DEFAULT_PROMPT_PATH,
         build_extraction_payload,
         resolve_api_key,
     )
@@ -38,6 +36,11 @@ SubsetTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
 Logger = Callable[[str], None]
 
 PIPELINE_OUTPUT_DIR = Path(__file__).resolve().parent / "hyv2_subset_to_category_minimal_pipeline" / "outputs"
+EXPERIMENTS_DIR = Path(__file__).resolve().parent
+HYV2_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv2.schema.json"
+HYV3_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv3.schema.json"
+HYV2_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" / "prompt.md"
+HYV3_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" / "promptv3.md"
 
 
 def default_output_path(input_path: Path) -> Path:
@@ -48,6 +51,14 @@ def default_output_path(input_path: Path) -> Path:
 def _sanitize_filename(value: str) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._")
     return sanitized or "category"
+
+
+def build_final_output_path(descriptive_output_path: Path) -> Path:
+    if descriptive_output_path.stem.endswith("_pipeline"):
+        final_name = f"{descriptive_output_path.stem[:-len('_pipeline')]}_final{descriptive_output_path.suffix}"
+    else:
+        final_name = f"{descriptive_output_path.stem}_final{descriptive_output_path.suffix}"
+    return descriptive_output_path.with_name(final_name)
 
 
 def _is_shared_role(category_role: Any) -> bool:
@@ -206,6 +217,7 @@ def run_hyv2_pipeline(
     input_path: Path,
     output_path: Optional[Path],
     schema_path: Path,
+    prompt_path: Path,
     save_markdown: bool,
     parse_model: str,
     timeout_seconds: int,
@@ -221,7 +233,9 @@ def run_hyv2_pipeline(
 ) -> Tuple[Path, Dict[str, Any]]:
     input_path = input_path.resolve()
     requested_output_path = output_path.resolve() if output_path else default_output_path(input_path)
-    final_output_path = next_available_path(requested_output_path)
+    descriptive_output_path = next_available_path(requested_output_path)
+    final_output_path = next_available_path(build_final_output_path(descriptive_output_path))
+    descriptive_output_path.parent.mkdir(parents=True, exist_ok=True)
     final_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger(f"Parsing menu: {input_path}")
@@ -236,7 +250,7 @@ def run_hyv2_pipeline(
     )
 
     if save_markdown:
-        markdown_path = final_output_path.with_suffix(".md")
+        markdown_path = descriptive_output_path.with_suffix(".md")
         markdown_path.write_text(stage1_payload["markdown"], encoding="utf-8")
         logger(f"Wrote ADE markdown to {markdown_path}")
 
@@ -264,7 +278,7 @@ def run_hyv2_pipeline(
 
     intermediates_dir: Optional[Path] = None
     if keep_intermediates:
-        intermediates_dir = final_output_path.with_suffix("")
+        intermediates_dir = descriptive_output_path.with_suffix("")
         intermediates_dir.mkdir(parents=True, exist_ok=True)
         _write_json(
             intermediates_dir / "preprocessed_extracted.json",
@@ -300,6 +314,7 @@ def run_hyv2_pipeline(
                 generation_mode=generation_mode,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                prompt_path=prompt_path,
             )
             output = validated.model_dump(by_alias=True)
             category_run = {
@@ -326,9 +341,6 @@ def run_hyv2_pipeline(
                 f"subset_size={len(subset_category_refs)}; "
                 f"total_tokens={run_total_tokens if run_total_tokens is not None else 'unknown'}"
             )
-            if intermediates_dir is not None:
-                safe_ref = _sanitize_filename(category_ref)
-                _write_json(intermediates_dir / f"{safe_ref}_category_item_minimal.json", output)
         except Exception as exc:
             category_runs.append(
                 {
@@ -346,9 +358,12 @@ def run_hyv2_pipeline(
         "document_path": stage1_payload["document_path"],
         "stage1": {
             "schema_path": str(schema_path),
-            "prompt_path": str(DEFAULT_PROMPT_PATH),
+            "prompt_path": stage1_payload.get("prompt_path", ""),
             "parse_model": parse_model,
             "extracted": stage1_extracted,
+        },
+        "stage2": {
+            "prompt_path": str(prompt_path),
         },
         "preprocessing": {
             "rewrites": rewrites,
@@ -367,11 +382,26 @@ def run_hyv2_pipeline(
         },
     }
 
-    logger(f"Writing aggregate output to {final_output_path}")
-    _write_json(final_output_path, aggregate_payload)
+    merged_final_payload = {
+        "document_path": stage1_payload["document_path"],
+        "Categories": [
+            {
+                "category_name": category_run["category_name"],
+                **category_run["output"],
+            }
+            for category_run in category_runs
+            if category_run.get("status") == "success"
+        ],
+    }
+
+    logger(f"Writing descriptive output to {descriptive_output_path}")
+    _write_json(descriptive_output_path, aggregate_payload)
+    logger(f"Writing final merged output to {final_output_path}")
+    _write_json(final_output_path, merged_final_payload)
     logger(
         "Pipeline summary:"
         f" successes={success_count}, failures={failure_count},"
-        f" total_tokens={total_tokens}, output={final_output_path}"
+        f" total_tokens={total_tokens}, descriptive_output={descriptive_output_path},"
+        f" final_output={final_output_path}"
     )
-    return final_output_path, aggregate_payload
+    return descriptive_output_path, aggregate_payload

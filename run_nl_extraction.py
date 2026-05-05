@@ -31,7 +31,7 @@ MENUOCR_DIR = REPO_ROOT / "menuocr"
 if str(MENUOCR_DIR) not in sys.path:
     sys.path.insert(0, str(MENUOCR_DIR))
 
-from ade_client import (  # noqa: E402
+from app.pipeline.ade_client import (  # noqa: E402
     ADEClientError,
     DEFAULT_PARSE_MODEL,
     DEFAULT_TIMEOUT_SECONDS,

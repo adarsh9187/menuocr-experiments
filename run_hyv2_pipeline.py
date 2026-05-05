@@ -7,7 +7,7 @@ from typing import List, Optional
 from dotenv import load_dotenv
 
 try:
-    from .hyv2_pipeline import run_hyv2_pipeline
+    from .hyv2_pipeline import HYV2_PROMPT_PATH, HYV3_PROMPT_PATH, HYV3_SCHEMA_PATH, run_hyv2_pipeline
     from .hyv2_subset_to_category_minimal_pipeline.config import MODEL_CONFIG
     from .run_nl_extraction import (
         DEFAULT_ENV_PATH,
@@ -17,7 +17,7 @@ try:
         MENUOCR_DIR,
     )
 except ImportError:
-    from hyv2_pipeline import run_hyv2_pipeline
+    from hyv2_pipeline import HYV2_PROMPT_PATH, HYV3_PROMPT_PATH, HYV3_SCHEMA_PATH, run_hyv2_pipeline
     from hyv2_subset_to_category_minimal_pipeline.config import MODEL_CONFIG
     from run_nl_extraction import (
         DEFAULT_ENV_PATH,
@@ -30,7 +30,7 @@ except ImportError:
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the end-to-end hyv2 extraction and category transformation pipeline."
+        description="Run the end-to-end hyv2/hyv3 extraction and category transformation pipeline."
     )
     parser.add_argument("input", type=Path, help="Path to the menu file to parse and transform.")
     parser.add_argument(
@@ -39,16 +39,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=Path,
         default=None,
         help=(
-            "Destination JSON file. Defaults to "
+            "Destination descriptive/debug JSON file. Defaults to "
             "experiments/hyv2_subset_to_category_minimal_pipeline/outputs/"
-            "<stem>_hyv2_pipeline.json"
+            "<stem>_hyv2_pipeline.json. A merged final JSON is also written beside it as "
+            "<stem>_hyv2_final.json."
         ),
     )
     parser.add_argument(
         "--schema",
         type=Path,
-        default=DEFAULT_SCHEMA_PATH,
-        help="Path to the stage-1 extraction schema JSON.",
+        default=None,
+        help="Path to the stage-1 extraction schema JSON. If omitted, uses hyv2 by default or hyv3 when --v3 is set.",
     )
     parser.add_argument(
         "--save-markdown",
@@ -96,9 +97,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Maximum completion tokens for the chat model.",
     )
     parser.add_argument(
+        "--v3",
+        action="store_true",
+        help="Use hyv3 stage-1 extraction schema and promptv3 stage-2 transformation prompt.",
+    )
+    parser.add_argument(
         "--keep-intermediates",
         action="store_true",
-        help="Persist the preprocessed extraction plus per-category subset and output JSON files.",
+        help="Persist the preprocessed extraction plus per-category subset JSON files.",
     )
     return parser.parse_args(argv)
 
@@ -112,10 +118,15 @@ def main(argv: Optional[List[str]] = None) -> None:
     if not input_path.exists():
         raise SystemExit(f"Input file not found: {input_path}")
 
+    default_schema_path = HYV3_SCHEMA_PATH if args.v3 else DEFAULT_SCHEMA_PATH
+    schema_path = args.schema.resolve() if args.schema else default_schema_path.resolve()
+    prompt_path = HYV3_PROMPT_PATH if args.v3 else HYV2_PROMPT_PATH
+
     run_hyv2_pipeline(
         input_path=input_path,
         output_path=args.output,
-        schema_path=args.schema.resolve(),
+        schema_path=schema_path,
+        prompt_path=prompt_path,
         save_markdown=args.save_markdown,
         parse_model=args.parse_model,
         timeout_seconds=args.timeout,
