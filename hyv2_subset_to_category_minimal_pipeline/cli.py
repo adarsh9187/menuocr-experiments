@@ -35,7 +35,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--generation-mode",
         choices=["json_mode", "structured"],
-        default="json_mode",
+        default="structured",
         help=(
             "Generation strategy: 'json_mode' uses free JSON generation plus validation; "
             "'structured' constrains generation with the Pydantic-derived JSON schema."
@@ -50,7 +50,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=8000,
+        default=20000,
         help="Maximum completion tokens for the chat model.",
     )
     return parser.parse_args(argv)
