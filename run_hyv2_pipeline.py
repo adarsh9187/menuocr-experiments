@@ -39,10 +39,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         type=Path,
         default=None,
         help=(
-            "Destination descriptive/debug JSON file. Defaults to "
+            "Destination descriptive/debug JSON file name. The pipeline saves all run artifacts in a "
+            "same-named folder beside this path. Defaults to "
             "experiments/hyv2_subset_to_category_minimal_pipeline/outputs/"
-            "<stem>_hyv2_pipeline.json. A merged final JSON is also written beside it as "
-            "<stem>_hyv2_final.json."
+            "<stem>_hyv2_pipeline/<stem>_hyv2_pipeline.json. A merged final JSON is also written in that "
+            "folder as <stem>_hyv2_final.json."
         ),
     )
     parser.add_argument(
@@ -54,7 +55,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--save-markdown",
         action="store_true",
-        help="Also write ADE markdown beside the aggregate JSON output.",
+        help="Also write ADE markdown into the run output folder.",
     )
     parser.add_argument(
         "--parse-model",
@@ -104,7 +105,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--keep-intermediates",
         action="store_true",
-        help="Persist the preprocessed extraction plus per-category subset JSON files.",
+        help="Persist the preprocessed extraction JSON in the run output folder.",
     )
     return parser.parse_args(argv)
 

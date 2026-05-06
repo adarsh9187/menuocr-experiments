@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import re
 import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -21,11 +20,11 @@ try:
         summarize_categories,
     )
     from .hyv2_pipeline_paths import (
-        PIPELINE_OUTPUT_DIR,
         build_expected_output_path,
         build_final_output_path,
         build_intermediate_output_path,
         build_postprocessed_minimal_output_path,
+        build_run_output_dir,
         default_output_path,
         write_json,
     )
@@ -53,11 +52,11 @@ except ImportError:
         summarize_categories,
     )
     from hyv2_pipeline_paths import (
-        PIPELINE_OUTPUT_DIR,
         build_expected_output_path,
         build_final_output_path,
         build_intermediate_output_path,
         build_postprocessed_minimal_output_path,
+        build_run_output_dir,
         default_output_path,
         write_json,
     )
@@ -87,13 +86,6 @@ HYV2_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv2.schema.json"
 HYV3_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv3.schema.json"
 HYV2_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" / "prompt.md"
 HYV3_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" / "promptv3.md"
-
-
-def _sanitize_filename(value: str) -> str:
-    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._")
-    return sanitized or "category"
-
-
 def run_hyv2_pipeline(
     *,
     input_path: Path,
@@ -116,14 +108,15 @@ def run_hyv2_pipeline(
 ) -> Tuple[Path, Dict[str, Any]]:
     input_path = input_path.resolve()
     requested_output_path = output_path.resolve() if output_path else default_output_path(input_path)
-    descriptive_output_path = next_available_path(requested_output_path)
+    run_output_dir = next_available_path(build_run_output_dir(requested_output_path))
+    descriptive_output_path = run_output_dir / f"{run_output_dir.name}{requested_output_path.suffix}"
     final_output_path = next_available_path(build_final_output_path(descriptive_output_path))
     postprocessed_minimal_output_path = next_available_path(
         build_postprocessed_minimal_output_path(descriptive_output_path)
     )
     intermediate_output_path = next_available_path(build_intermediate_output_path(descriptive_output_path))
     expected_output_path = next_available_path(build_expected_output_path(descriptive_output_path))
-    descriptive_output_path.parent.mkdir(parents=True, exist_ok=True)
+    run_output_dir.mkdir(parents=True, exist_ok=True)
     final_output_path.parent.mkdir(parents=True, exist_ok=True)
     postprocessed_minimal_output_path.parent.mkdir(parents=True, exist_ok=True)
     intermediate_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,8 +186,7 @@ def run_hyv2_pipeline(
 
     intermediates_dir: Optional[Path] = None
     if keep_intermediates:
-        intermediates_dir = descriptive_output_path.with_suffix("")
-        intermediates_dir.mkdir(parents=True, exist_ok=True)
+        intermediates_dir = descriptive_output_path.parent
         write_json(
             intermediates_dir / "preprocessed_extracted.json",
             {"extracted": preprocessed_extracted, "rewrites": rewrites},
@@ -226,11 +218,6 @@ def run_hyv2_pipeline(
             f"Transforming category {index}/{len(subset_runs)}: "
             f"{current_category_name} ({current_category_ref}) with {len(subset_category_refs)} subset categories"
         )
-
-        if intermediates_dir is not None:
-            safe_ref = _sanitize_filename(current_category_ref)
-            write_json(intermediates_dir / f"{safe_ref}_subset.json", subset_payload)
-
         try:
             validated, usage = subset_transformer(
                 subset_payload=subset_payload,

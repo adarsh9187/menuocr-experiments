@@ -13,33 +13,37 @@ def default_output_path(input_path: Path) -> Path:
     return PIPELINE_OUTPUT_DIR / f"{input_path.stem}_hyv2_pipeline.json"
 
 
+def build_run_output_dir(output_path: Path) -> Path:
+    return output_path.parent / output_path.stem
+
+
 def build_final_output_path(descriptive_output_path: Path) -> Path:
     if descriptive_output_path.stem.endswith("_pipeline"):
         final_name = f"{descriptive_output_path.stem[:-len('_pipeline')]}_final{descriptive_output_path.suffix}"
     else:
         final_name = f"{descriptive_output_path.stem}_final{descriptive_output_path.suffix}"
-    return descriptive_output_path.with_name(final_name)
+    return descriptive_output_path.parent / final_name
 
 
 def build_postprocessed_minimal_output_path(descriptive_output_path: Path) -> Path:
     stem = descriptive_output_path.stem
     if stem.endswith("_pipeline"):
         stem = stem[: -len("_pipeline")]
-    return descriptive_output_path.with_name(f"{stem}_postprocessed_minimal{descriptive_output_path.suffix}")
+    return descriptive_output_path.parent / f"{stem}_postprocessed_minimal{descriptive_output_path.suffix}"
 
 
 def build_intermediate_output_path(descriptive_output_path: Path) -> Path:
     stem = descriptive_output_path.stem
     if stem.endswith("_pipeline"):
         stem = stem[: -len("_pipeline")]
-    return descriptive_output_path.with_name(f"{stem}_intermediate{descriptive_output_path.suffix}")
+    return descriptive_output_path.parent / f"{stem}_intermediate{descriptive_output_path.suffix}"
 
 
 def build_expected_output_path(descriptive_output_path: Path) -> Path:
     stem = descriptive_output_path.stem
     if stem.endswith("_pipeline"):
         stem = stem[: -len("_pipeline")]
-    return descriptive_output_path.with_name(f"{stem}_expected{descriptive_output_path.suffix}")
+    return descriptive_output_path.parent / f"{stem}_expected{descriptive_output_path.suffix}"
 
 
 def write_json(path: Path, payload: Dict) -> None:
@@ -49,6 +53,7 @@ def write_json(path: Path, payload: Dict) -> None:
 
 __all__ = [
     "PIPELINE_OUTPUT_DIR",
+    "build_run_output_dir",
     "build_expected_output_path",
     "build_final_output_path",
     "build_intermediate_output_path",

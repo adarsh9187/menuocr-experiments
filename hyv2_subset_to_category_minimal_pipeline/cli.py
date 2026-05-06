@@ -9,7 +9,7 @@ import requests
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
-from .config import ENV_PATH, MODEL_CONFIG
+from .config import ENV_PATH, MODEL_CONFIG, PROMPT_PATH
 from .io_utils import next_available_path
 from .pipeline import transform_subset
 
@@ -53,6 +53,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default=20000,
         help="Maximum completion tokens for the chat model.",
     )
+    parser.add_argument(
+        "--v4",
+        action="store_true",
+        help="Use promptv4.md instead of the default prompt.md.",
+    )
     return parser.parse_args(argv)
 
 
@@ -61,12 +66,16 @@ def run(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
     subset_payload = json.loads(args.input.read_text(encoding="utf-8"))
+    
+    prompt_path = Path(__file__).resolve().parent / "promptv4.md" if args.v4 else PROMPT_PATH
+    
     validated, usage = transform_subset(
         subset_payload=subset_payload,
         model_name=args.model,
         generation_mode=args.generation_mode,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
+        prompt_path=prompt_path,
     )
 
     output_path = args.output or args.input.with_name(f"{args.input.stem}_category_item_minimal.json")
