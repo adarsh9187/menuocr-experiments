@@ -175,7 +175,7 @@ def run_hyv2_pipeline(
         try:
             hours_result, hours_usage = hours_transformer(
                 hours_input_payload=hours_input_payload,
-                model_name="gpt-4o",
+                model_name=model_name,
                 temperature=0.0,
                 max_tokens=max_tokens,
             )

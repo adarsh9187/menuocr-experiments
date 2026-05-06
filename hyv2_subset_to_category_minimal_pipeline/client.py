@@ -13,7 +13,7 @@ def resolve_chat_credentials(model_name: ModelName) -> Tuple[str, str]:
     if config["kind"] != "chat":
         raise ValueError(
             f"The selected model '{model_name}' is an embeddings model and cannot generate "
-            "category_item_minimal JSON. Use 'gpt-4o' for this pipeline."
+            "category_item_minimal JSON. Use a chat model such as 'gpt-5-mini' or 'gpt-4o' for this pipeline."
         )
 
     endpoint = os.getenv(config["endpoint_env"])
