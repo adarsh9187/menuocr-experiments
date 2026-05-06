@@ -11,6 +11,7 @@ from .client import (
     resolve_chat_credentials,
 )
 from .io_utils import extract_json_object
+from .prompting import build_strict_structured_response_format
 
 
 class DayHoursPayload(BaseModel):
@@ -74,44 +75,11 @@ def build_hours_input_payload(extracted: Dict[str, Any]) -> Dict[str, str]:
     return payload
 
 
-def _strip_nonessential_schema_metadata(value: Any) -> Any:
-    if isinstance(value, dict):
-        stripped: Dict[str, Any] = {}
-        for key, child in value.items():
-            if key in {"default", "title", "description", "examples"}:
-                continue
-            stripped[key] = _strip_nonessential_schema_metadata(child)
-        return stripped
-    if isinstance(value, list):
-        return [_strip_nonessential_schema_metadata(child) for child in value]
-    return value
-
-
-def _ensure_object_schemas_are_closed(value: Any) -> Any:
-    if isinstance(value, dict):
-        closed = {
-            key: _ensure_object_schemas_are_closed(child)
-            for key, child in value.items()
-        }
-        if closed.get("type") == "object":
-            closed.setdefault("additionalProperties", False)
-        return closed
-    if isinstance(value, list):
-        return [_ensure_object_schemas_are_closed(child) for child in value]
-    return value
-
-
 def build_hours_response_format(model: Type[HoursBatchPayload] = HoursBatchPayload) -> Dict[str, Any]:
-    schema = _strip_nonessential_schema_metadata(model.model_json_schema())
-    schema = _ensure_object_schemas_are_closed(schema)
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "hours_batch_payload",
-            "strict": True,
-            "schema": schema,
-        },
-    }
+    return build_strict_structured_response_format(
+        model=model,
+        schema_name="hours_batch_payload",
+    )
 
 
 def build_hours_messages(hours_input_payload: Dict[str, str]) -> List[Dict[str, str]]:

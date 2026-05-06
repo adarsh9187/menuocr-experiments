@@ -4,7 +4,10 @@ import copy
 import re
 from typing import Any, Dict, List, Optional
 
-from .hyv2_pipeline_categories import category_items
+try:
+    from .hyv2_pipeline_categories import category_items
+except ImportError:
+    from hyv2_pipeline_categories import category_items
 
 
 def drop_none_values(value: Any) -> Any:

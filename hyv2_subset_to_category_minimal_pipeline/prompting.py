@@ -79,16 +79,27 @@ def _coerce_schema_for_strict_structured_outputs(value: Any) -> Any:
     return value
 
 
-def build_structured_response_format(
-    model: Type[CategoryItemMinimalPayload] = CategoryItemMinimalPayload,
+def build_strict_structured_response_format(
+    *,
+    model: Type[Any],
+    schema_name: str,
 ) -> Dict[str, Any]:
     schema = _strip_nonessential_schema_metadata(model.model_json_schema())
     schema = _coerce_schema_for_strict_structured_outputs(schema)
     return {
         "type": "json_schema",
         "json_schema": {
-            "name": "category_item_minimal_payload",
+            "name": schema_name,
             "strict": True,
             "schema": schema,
         },
     }
+
+
+def build_structured_response_format(
+    model: Type[CategoryItemMinimalPayload] = CategoryItemMinimalPayload,
+) -> Dict[str, Any]:
+    return build_strict_structured_response_format(
+        model=model,
+        schema_name="category_item_minimal_payload",
+    )
