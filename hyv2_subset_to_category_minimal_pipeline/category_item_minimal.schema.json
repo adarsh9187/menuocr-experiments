@@ -3,14 +3,10 @@
   "title": "Menu Items Extraction Schema (Flattened)",
   "type": "object",
   "required": [
-    "category_description",
     "items"
   ],
   "additionalProperties": false,
   "properties": {
-    "category_description": {
-      "type": "string"
-    },
     "category_sizes": {
       "type": "array",
       "items": {
@@ -186,9 +182,6 @@
                 }
               }
             }
-          },
-          "itemDescription": {
-            "type": "string"
           },
           "toppings": {
             "type": "object",

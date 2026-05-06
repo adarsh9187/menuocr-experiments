@@ -20,6 +20,8 @@ About the input subset:
 - The target category and related shared sections may express important menu
   logic across:
   - `category_description`
+  - `category_hours`
+  - `category_type`
   - `category_sizes`
   - `category_options`
   - `category_toppings`
@@ -72,14 +74,24 @@ Important rules:
 6. Use descriptions and split descriptive fields as supporting evidence to
    derive structured sizes, options, toppings, prices, and rules when the
    information is stated clearly enough.
-7. If a shared section applies to the target category, fold that information
+7. Infer every modifiable type from all relevant evidence, not only its matching
+   field. In particular:
+   - infer options from category/item descriptions, category/item pricing, and
+     category/item options fields
+   - infer sizes from category/item descriptions, category/item pricing, and
+     category/item sizes fields
+   - infer toppings from category/item descriptions, category/item pricing, and
+     category/item toppings fields when that evidence supports them
+   - use the matching field plus descriptions plus pricing together whenever you
+     decide whether something is an option, size, or topping
+8. If a shared section applies to the target category, fold that information
    into the target category output instead of preserving the shared section as a
    separate object.
-8. If multiple shared sections contribute relevant information, merge them.
-9. Use the target category as the scope anchor for all decisions.
-10. Capture all important prices, sizes, options, toppings, and item-specific
+9. If multiple shared sections contribute relevant information, merge them.
+10. Use the target category as the scope anchor for all decisions.
+11. Capture all important prices, sizes, options, toppings, and item-specific
    rules that can be structured from the input subset.
-11. When in doubt, prefer preserving information in the closest valid target
+12. When in doubt, prefer preserving information in the closest valid target
    field rather than dropping it.
 
 Placement and deduplication rules:
@@ -87,24 +99,40 @@ Placement and deduplication rules:
 - For fields that can appear at both category level and item level, place the
   data at category level when it applies to the whole category.
 - Place the data at item level when it applies only to one specific item.
+- Never duplicate the same sizes, options, or toppings at both category level
+  and item level. If something is truly shared across the category, keep it
+  only at category level. If something is truly specific to one item, keep it
+  only at that item level.
+- Do not copy item-level sizes, options, or toppings upward into category
+  level just because similar information exists elsewhere in the subset.
+- Do not copy category-level sizes, options, or toppings downward onto every
+  item unless an item truly has its own distinct item-level version of that
+  same structure.
+- If category-level and item-level structures overlap, keep the shared/common
+  part only at category level and keep only the genuinely item-specific
+  remainder at item level.
 - Make sure the final output covers the full applicable content of the input.
 - Do not omit any valid item-level or category-level information just because it
   also appears alongside other structured data.
 - Do not create duplicates across category level and item level.
 - Do not repeat the same structured information more than once in the final
   output.
+- The category output must never end with zero items. If the target category has
+  no usable item entries after interpretation, create one fallback item using
+  the category name itself as the item name, then attach the category's relevant
+  prices, sizes, options, toppings, and descriptive evidence to that fallback
+  item as best as the schema allows.
+  
+Descriptions and passthrough fields:
 
-Descriptions:
-
-- Populate `category_description` from the input's category-level description
-  field as-is.
-- If there is any other important category-level information, note, hour,
-  disclaimer, included side, preparation note, or rule that does not fit
-  naturally into `category_sizes`, `category_options`, `category_toppings`, or
-  `category_pricing`, preserve that important information verbatim in
-  `category_description`.
-- Populate `itemDescription` from the input's item-level description field
-  as-is.
+- Use `category_description` and `item_description` as hints for understanding
+  pricing, sizes, options, toppings, and item structure.
+- Do not generate category description or item description fields in the output.
+  They will be passed through unchanged later by the pipeline.
+- Use `category_hours` only as supporting evidence about operating-hour scope.
+  Do not generate any hours field in the output.
+- Use `category_type` as a hint for category semantics, especially when
+  deciding whether toppings are appropriate.
 
 Pricing and sizes:
 
@@ -163,6 +191,10 @@ Options:
 - If a heading is not explicitly present, generate an `optionName` that matches
   the modifier heading implied by the choice.
 - `choiceName` is the specific selectable choice under that modifier heading.
+- For simple add-on options such as `add cheese`, `add bacon`, `extra sauce`,
+  or similar addition-style modifiers, make `optionName` and `choiceName` the
+  same text when no better grouping label is explicitly provided. For example,
+  use `optionName = "Add Cheese"` and `choiceName = "Add Cheese"`.
 - If an option has size-based pricing, set `choicePrice` to `0` and populate
   `choicePriceBySize` using the exact printed size labels from the input.
 - When a variant or add-on is printed as full prices by size, do not copy those

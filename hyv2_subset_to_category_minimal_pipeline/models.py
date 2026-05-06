@@ -53,7 +53,6 @@ class ItemPayload(BaseModel):
     name: str
     price: Optional[float] = None
     options: List[ModifierChoice] = Field(default_factory=list)
-    itemDescription: Optional[str] = ""
     toppings: Optional[ToppingsPayload] = None
     ItemSizes: List[SizePriceEntry] = Field(default_factory=list)
 
@@ -61,7 +60,6 @@ class ItemPayload(BaseModel):
 class CategoryItemMinimalPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    category_description: str
     category_sizes: List[SizePriceEntry] = Field(default_factory=list)
     category_options: List[ModifierChoice] = Field(default_factory=list)
     category_toppings: Optional[ToppingsPayload] = None

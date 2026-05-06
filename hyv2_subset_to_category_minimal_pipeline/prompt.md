@@ -79,12 +79,12 @@ Placement and deduplication rules:
 - Do not repeat the same structured information more than once in the final
   output.
 
-Descriptions:
+Descriptions and passthrough fields:
 
-- Populate `category_description` from the input's category-level description
-  fields as-is.
-- Populate `itemDescription` from the input's item-level description fields
-  as-is.
+- Use category-level and item-level description fields as hints for
+  understanding prices, sizes, options, toppings, and item structure.
+- Do not generate category description or item description fields in the
+  output. They will be passed through unchanged later by the pipeline.
 
 Pricing and sizes:
 

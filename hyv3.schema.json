@@ -22,7 +22,9 @@
           "category_name",
           "category_ref",
           "category_role",
+          "category_type",
           "category_description",
+          "category_hours",
           "category_sizes",
           "category_options",
           "category_toppings",
@@ -51,9 +53,34 @@
             ],
             "description": "Role of this category or section within the menu structure. Use `normal_category` for a regular category. Use one of the shared section roles only when the extracted section is actually a shared sizes, options, toppings, modifiers, or mixed shared section rather than a normal item category. A shared section should apply to multiple categories; if the information applies to only one category, keep it inside that category instead."
           },
+          "category_type": {
+            "type": "string",
+            "enum": [
+              "food (appetizers)",
+              "food (soups)",
+              "food (salads)",
+              "food (pizzas)",
+              "food (entrees)",
+              "food (less expensive entrees)",
+              "food (for kids)",
+              "food (sides)",
+              "frozens (desserts)",
+              "beverages",
+              "beverages (coffee)",
+              "alcohol (beer)",
+              "alcohol (wine)",
+              "alcohol (liquor)",
+              "food (catering)"
+            ],
+            "description": "Standardized category bucket for downstream grouping and RMF report-category classification. Choose the best enum for this category based on the printed heading and item content."
+          },
           "category_description": {
             "type": "string",
             "description": "Verbatim category description exactly as printed on the menu for this category or section. Preserve the printed wording as closely as possible. Leave empty if the category has no printed description. Do not paraphrase this field. If there is any other important category-level information, note, hour, disclaimer, included side, preparation note, or rule that does not fit naturally into the sizes, options, toppings, or pricing fields, extract that important information verbatim here as well."
+          },
+          "category_hours": {
+            "type": "string",
+            "description": "Verbatim operating-hours text that applies specifically to this individual category or section and not to the whole menu. Use this only for category-specific hours. Do not duplicate whole-menu or global hours here. Leave empty if this category has no specific hours."
           },
           "category_sizes": {
             "type": "string",

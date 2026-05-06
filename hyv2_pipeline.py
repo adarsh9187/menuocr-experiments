@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 try:
+    from .hyv2_subset_to_category_minimal_pipeline.hours import (
+        build_hours_input_payload,
+        parse_hours_payload,
+    )
     from .hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from .hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from .run_nl_extraction import (
@@ -14,6 +18,10 @@ try:
         resolve_api_key,
     )
 except ImportError:
+    from hyv2_subset_to_category_minimal_pipeline.hours import (
+        build_hours_input_payload,
+        parse_hours_payload,
+    )
     from hyv2_subset_to_category_minimal_pipeline.io_utils import next_available_path
     from hyv2_subset_to_category_minimal_pipeline.pipeline import transform_subset
     from run_nl_extraction import (
@@ -33,6 +41,7 @@ SHARED_SECTION_ROLES = {
 
 ExtractionBuilder = Callable[..., Dict[str, Any]]
 SubsetTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
+HoursTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
 Logger = Callable[[str], None]
 
 PIPELINE_OUTPUT_DIR = Path(__file__).resolve().parent / "hyv2_subset_to_category_minimal_pipeline" / "outputs"
@@ -212,6 +221,95 @@ def _write_json(path: Path, payload: Dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def _drop_none_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _drop_none_values(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_drop_none_values(v) for v in value]
+    return value
+
+
+def _normalize_name_key(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
+
+
+def _build_item_source_lookup(source_items: List[Dict[str, Any]]) -> Tuple[Dict[str, List[int]], List[bool]]:
+    lookup: Dict[str, List[int]] = {}
+    used: List[bool] = [False] * len(source_items)
+    for index, item in enumerate(source_items):
+        key = _normalize_name_key(item.get("item_name"))
+        if not key:
+            continue
+        lookup.setdefault(key, []).append(index)
+    return lookup, used
+
+
+def _consume_source_item_index(
+    *,
+    generated_name: str,
+    generated_index: int,
+    source_items: List[Dict[str, Any]],
+    source_lookup: Dict[str, List[int]],
+    source_used: List[bool],
+) -> Optional[int]:
+    key = _normalize_name_key(generated_name)
+    for candidate_index in source_lookup.get(key, []):
+        if not source_used[candidate_index]:
+            source_used[candidate_index] = True
+            return candidate_index
+
+    if generated_index < len(source_items) and not source_used[generated_index]:
+        source_used[generated_index] = True
+        return generated_index
+
+    for candidate_index in range(len(source_items)):
+        if not source_used[candidate_index]:
+            source_used[candidate_index] = True
+            return candidate_index
+    return None
+
+
+def _build_category_sort_lookup(extracted: Dict[str, Any]) -> Dict[str, int]:
+    lookup: Dict[str, int] = {}
+    categories = extracted.get("categories")
+    if not isinstance(categories, list):
+        return lookup
+    for index, category in enumerate(categories):
+        category_ref = _category_ref(category)
+        if category_ref:
+            lookup[category_ref] = index
+    return lookup
+
+
+def _build_merged_items(
+    *,
+    generated_items: List[Dict[str, Any]],
+    source_category: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    source_items = _category_items(source_category)
+    source_lookup, source_used = _build_item_source_lookup(source_items)
+    merged_items: List[Dict[str, Any]] = []
+
+    for item_index, item in enumerate(generated_items):
+        source_index = _consume_source_item_index(
+            generated_name=str(item.get("name") or ""),
+            generated_index=item_index,
+            source_items=source_items,
+            source_lookup=source_lookup,
+            source_used=source_used,
+        )
+        source_item = source_items[source_index] if source_index is not None and source_index < len(source_items) else {}
+        merged_items.append(
+            _drop_none_values(
+                {
+                    **item,
+                    "itemDescription": str(source_item.get("item_description") or ""),
+                }
+            )
+        )
+    return merged_items
+
+
 def run_hyv2_pipeline(
     *,
     input_path: Path,
@@ -229,6 +327,7 @@ def run_hyv2_pipeline(
     keep_intermediates: bool,
     extraction_builder: ExtractionBuilder = build_extraction_payload,
     subset_transformer: SubsetTransformer = transform_subset,
+    hours_transformer: HoursTransformer = parse_hours_payload,
     logger: Logger = print,
 ) -> Tuple[Path, Dict[str, Any]]:
     input_path = input_path.resolve()
@@ -275,6 +374,30 @@ def run_hyv2_pipeline(
     logger("Building subsets")
     subset_runs = build_category_subsets(preprocessed_extracted)
     logger(f"Built {len(subset_runs)} category subsets")
+    category_sort_lookup = _build_category_sort_lookup(preprocessed_extracted)
+    categories_by_ref = {
+        category_ref: category
+        for category in preprocessed_extracted.get("categories", [])
+        if isinstance(category, dict) and (category_ref := _category_ref(category))
+    }
+
+    hours_input_payload = build_hours_input_payload(preprocessed_extracted)
+    hours_result = None
+    hours_usage: Dict[str, Any] = {}
+    hours_error: Optional[str] = None
+    if hours_input_payload:
+        logger(f"Structuring hours for {len(hours_input_payload)} raw hours entries")
+        try:
+            hours_result, hours_usage = hours_transformer(
+                hours_input_payload=hours_input_payload,
+                model_name="gpt-4o",
+                temperature=0.0,
+                max_tokens=max_tokens,
+            )
+            logger("Hours structuring succeeded")
+        except Exception as exc:
+            hours_error = str(exc)
+            logger(f"Hours structuring failed: {exc}")
 
     intermediates_dir: Optional[Path] = None
     if keep_intermediates:
@@ -292,6 +415,15 @@ def run_hyv2_pipeline(
     total_prompt_tokens = 0
     total_completion_tokens = 0
     total_tokens = 0
+    hours_prompt_tokens = hours_usage.get("prompt_tokens")
+    hours_completion_tokens = hours_usage.get("completion_tokens")
+    hours_total_tokens = hours_usage.get("total_tokens")
+    if isinstance(hours_prompt_tokens, int):
+        total_prompt_tokens += hours_prompt_tokens
+    if isinstance(hours_completion_tokens, int):
+        total_completion_tokens += hours_completion_tokens
+    if isinstance(hours_total_tokens, int):
+        total_tokens += hours_total_tokens
     for index, subset_run in enumerate(subset_runs, start=1):
         category_ref = subset_run["category_ref"]
         category_name = subset_run["category_name"]
@@ -364,6 +496,10 @@ def run_hyv2_pipeline(
         },
         "stage2": {
             "prompt_path": str(prompt_path),
+            "hours_input": hours_input_payload,
+            "hours_usage": hours_usage,
+            "hours_output": hours_result.model_dump() if hours_result is not None else None,
+            "hours_error": hours_error,
         },
         "preprocessing": {
             "rewrites": rewrites,
@@ -382,13 +518,42 @@ def run_hyv2_pipeline(
         },
     }
 
+    category_hours_lookup: Dict[str, Dict[str, Any]] = {}
+    structured_global_hours = None
+    if hours_result is not None:
+        structured_global_hours = (
+            hours_result.global_hours.model_dump(exclude_none=True) if hours_result.global_hours else None
+        )
+        for entry in hours_result.category_hours:
+            category_hours_lookup[_normalize_name_key(entry.category_name)] = entry.hours.model_dump(
+                exclude_none=True
+            )
+
     merged_final_payload = {
         "document_path": stage1_payload["document_path"],
+        "menu_hours": structured_global_hours,
         "Categories": [
-            {
-                "category_name": category_run["category_name"],
-                **category_run["output"],
-            }
+            _drop_none_values(
+                {
+                    "category_name": category_run["category_name"],
+                    "Description": str(
+                        (categories_by_ref.get(category_run["category_ref"], {}) or {}).get("category_description")
+                        or ""
+                    ),
+                    "sort": category_sort_lookup.get(category_run["category_ref"]),
+                    "category_type": (
+                        (categories_by_ref.get(category_run["category_ref"], {}) or {}).get("category_type")
+                    ),
+                    "category_sizes": category_run["output"].get("category_sizes") or [],
+                    "category_options": category_run["output"].get("category_options") or [],
+                    "category_toppings": category_run["output"].get("category_toppings"),
+                    "hours": category_hours_lookup.get(_normalize_name_key(category_run["category_name"])),
+                    "items": _build_merged_items(
+                        generated_items=category_run["output"].get("items") or [],
+                        source_category=categories_by_ref.get(category_run["category_ref"], {}) or {},
+                    ),
+                }
+            )
             for category_run in category_runs
             if category_run.get("status") == "success"
         ],

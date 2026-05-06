@@ -42,7 +42,8 @@ def drop_description_properties(value: Any) -> Any:
 
 def normalize_output_obj(output_obj: Dict[str, Any]) -> Dict[str, Any]:
     normalized = dict(output_obj)
-    normalized["category_description"] = normalize_text(normalized.get("category_description"))
+    normalized.pop("category_description", None)
+    normalized.pop("Description", None)
     normalized["items"] = list(normalized.get("items") or [])
     if normalized.get("category_toppings") is None:
         normalized.pop("category_toppings", None)
@@ -83,10 +84,11 @@ def normalize_output_obj(output_obj: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(item, dict):
             continue
         normalized_item = dict(item)
+        normalized_item.pop("itemDescription", None)
+        normalized_item.pop("Description", None)
         normalized_item["s_no"] = normalize_text(normalized_item.get("s_no", ""))
         normalized_item["name"] = normalize_text(normalized_item.get("name"))
         normalized_item["price"] = normalize_required_number(normalized_item.get("price"))
-        normalized_item["itemDescription"] = normalize_text(normalized_item.get("itemDescription"))
 
         item_options = list(normalized_item.get("options") or [])
         normalized_options: List[Dict[str, Any]] = []
