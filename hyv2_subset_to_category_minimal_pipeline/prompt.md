@@ -158,6 +158,12 @@ Toppings:
 - Do not duplicate the same toppings at both levels.
 - Infer toppings from both modifiables and description fields whenever the
   structure is clear enough.
+- Keep default toppings only at item level during generation.
+- Keep available toppings only at category level during generation.
+- Do not place default toppings in `category_toppings`.
+- Do not place available toppings in item-level `toppings` during generation.
+- The pipeline will append category-level available toppings back onto items
+  after generation, so do not duplicate them yourself.
 - Default toppings are the toppings already on the item.
 - Available toppings are the toppings that can be added.
 - Always populate the `group` for available toppings using the heading that the

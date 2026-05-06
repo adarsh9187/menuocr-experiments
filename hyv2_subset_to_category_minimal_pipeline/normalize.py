@@ -47,6 +47,15 @@ def normalize_output_obj(output_obj: Dict[str, Any]) -> Dict[str, Any]:
     normalized["items"] = list(normalized.get("items") or [])
     if normalized.get("category_toppings") is None:
         normalized.pop("category_toppings", None)
+    elif isinstance(normalized.get("category_toppings"), dict):
+        category_toppings = dict(normalized["category_toppings"])
+        category_toppings.pop("default", None)
+        if not category_toppings.get("available"):
+            normalized.pop("category_toppings", None)
+        else:
+            normalized["category_toppings"] = drop_none_values(
+                {"available": list(category_toppings.get("available") or [])}
+            )
     normalized["category_sizes"] = list(normalized.get("category_sizes") or [])
     normalized["category_options"] = list(normalized.get("category_options") or [])
 
@@ -123,6 +132,14 @@ def normalize_output_obj(output_obj: Dict[str, Any]) -> Dict[str, Any]:
 
         if normalized_item.get("toppings") is None:
             normalized_item.pop("toppings", None)
+        elif isinstance(normalized_item.get("toppings"), dict):
+            item_toppings = dict(normalized_item["toppings"])
+            item_toppings.pop("available", None)
+            default_toppings = list(item_toppings.get("default") or [])
+            if default_toppings:
+                normalized_item["toppings"] = {"default": default_toppings}
+            else:
+                normalized_item.pop("toppings", None)
         normalized_items.append(drop_none_values(normalized_item))
 
     normalized["items"] = normalized_items

@@ -72,7 +72,7 @@
               "alcohol (liquor)",
               "food (catering)"
             ],
-            "description": "Standardized category bucket for downstream grouping and RMF report-category classification. Choose the best enum for this category based on the printed heading and item content."
+            "description": "Standardized category bucket for downstream grouping and RMF report-category classification. Choose the best enum for this category based on the printed heading and item content. Calzone and stromboli categories should be classified under `food (pizzas)`."
           },
           "category_description": {
             "type": "string",

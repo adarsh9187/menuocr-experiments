@@ -82,12 +82,14 @@
       "properties": {
         "default": {
           "type": "array",
+          "description": "Do not populate this at generation time. Keep default toppings only at item level.",
           "items": {
             "type": "string"
           }
         },
         "available": {
           "type": "array",
+          "description": "Populate shared addable toppings here at generation time. The pipeline will append these available toppings down onto items after generation.",
           "items": {
             "type": "object",
             "required": [
@@ -189,12 +191,14 @@
             "properties": {
               "default": {
                 "type": "array",
+                "description": "Populate only the toppings that already come on this specific item by default.",
                 "items": {
                   "type": "string"
                 }
               },
               "available": {
                 "type": "array",
+                "description": "Do not populate available toppings here at generation time when they are shared across the category. Keep shared available toppings at category level; the pipeline will append them onto items afterward.",
                 "items": {
                   "type": "object",
                   "required": [

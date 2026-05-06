@@ -39,11 +39,16 @@ class ToppingEntry(BaseModel):
     priceHalf: Optional[float] = None
 
 
-class ToppingsPayload(BaseModel):
+class CategoryToppingsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    available: List[ToppingEntry] = Field(default_factory=list)
+
+
+class ItemToppingsPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     default: List[str] = Field(default_factory=list)
-    available: List[ToppingEntry] = Field(default_factory=list)
 
 
 class ItemPayload(BaseModel):
@@ -53,7 +58,7 @@ class ItemPayload(BaseModel):
     name: str
     price: Optional[float] = None
     options: List[ModifierChoice] = Field(default_factory=list)
-    toppings: Optional[ToppingsPayload] = None
+    toppings: Optional[ItemToppingsPayload] = None
     ItemSizes: List[SizePriceEntry] = Field(default_factory=list)
 
 
@@ -62,5 +67,5 @@ class CategoryItemMinimalPayload(BaseModel):
 
     category_sizes: List[SizePriceEntry] = Field(default_factory=list)
     category_options: List[ModifierChoice] = Field(default_factory=list)
-    category_toppings: Optional[ToppingsPayload] = None
+    category_toppings: Optional[CategoryToppingsPayload] = None
     items: List[ItemPayload]

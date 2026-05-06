@@ -94,16 +94,6 @@ def merge_category_toppings_into_item(
     merged_item = copy.deepcopy(item)
     item_toppings = copy.deepcopy(merged_item.get("toppings") or {})
 
-    category_defaults = list(category_toppings.get("default") or [])
-    if category_defaults:
-        current_defaults = list(item_toppings.get("default") or [])
-        seen_defaults = {normalize_name_key(name) for name in current_defaults}
-        for topping_name in category_defaults:
-            if normalize_name_key(topping_name) not in seen_defaults:
-                current_defaults.append(topping_name)
-                seen_defaults.add(normalize_name_key(topping_name))
-        item_toppings["default"] = current_defaults
-
     category_available = list(category_toppings.get("available") or [])
     if category_available:
         current_available = list(item_toppings.get("available") or [])

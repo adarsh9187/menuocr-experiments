@@ -37,6 +37,11 @@ The input contains exactly one `normal_category` and zero or more related shared
 
 ## Toppings
 - Only populate toppings for pizzas, calzones, and strombolis.
+- Keep default toppings only at the item level during generation.
+- Keep available toppings only at the category level during generation.
+- Do not duplicate category-level available toppings onto items during generation; the pipeline will append category-level available toppings to items afterward.
+- Do not place default toppings in `category_toppings`.
+- Do not place available toppings in item-level `toppings` during generation unless the pipeline contract changes later.
 - Default toppings are those already on the item; available toppings are additions.
 - Always populate the `group` for available toppings using the topping heading.
 - `priceHalf` is the half-topping price when listed.
