@@ -1,12 +1,39 @@
 from __future__ import annotations
 
 import copy
-import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+MENUOCR_DIR = Path(__file__).resolve().parent.parent / "menuocr"
+if str(MENUOCR_DIR) not in sys.path:
+    sys.path.insert(0, str(MENUOCR_DIR))
+
+from app.pipeline.mapping import map_with_ir
+
 try:
+    from .hyv2_pipeline_categories import (
+        build_category_sort_lookup,
+        build_category_subsets,
+        category_ref,
+        preprocess_extracted_payload,
+        summarize_categories,
+    )
+    from .hyv2_pipeline_paths import (
+        PIPELINE_OUTPUT_DIR,
+        build_expected_output_path,
+        build_final_output_path,
+        build_intermediate_output_path,
+        build_postprocessed_minimal_output_path,
+        default_output_path,
+        write_json,
+    )
+    from .hyv2_pipeline_postprocess import (
+        apply_menuocr_style_postprocessing,
+        build_category_hours_lookup,
+        build_merged_final_payload,
+    )
     from .hyv2_subset_to_category_minimal_pipeline.hours import (
         build_hours_input_payload,
         parse_hours_payload,
@@ -18,6 +45,27 @@ try:
         resolve_api_key,
     )
 except ImportError:
+    from hyv2_pipeline_categories import (
+        build_category_sort_lookup,
+        build_category_subsets,
+        category_ref,
+        preprocess_extracted_payload,
+        summarize_categories,
+    )
+    from hyv2_pipeline_paths import (
+        PIPELINE_OUTPUT_DIR,
+        build_expected_output_path,
+        build_final_output_path,
+        build_intermediate_output_path,
+        build_postprocessed_minimal_output_path,
+        default_output_path,
+        write_json,
+    )
+    from hyv2_pipeline_postprocess import (
+        apply_menuocr_style_postprocessing,
+        build_category_hours_lookup,
+        build_merged_final_payload,
+    )
     from hyv2_subset_to_category_minimal_pipeline.hours import (
         build_hours_input_payload,
         parse_hours_payload,
@@ -29,22 +77,11 @@ except ImportError:
         resolve_api_key,
     )
 
-
-SHARED_SECTION_ROLES = {
-    "shared_sizes_section",
-    "shared_options_section",
-    "shared_toppings_section",
-    "shared_modifiers_section",
-    "mixed_shared_section",
-}
-
-
 ExtractionBuilder = Callable[..., Dict[str, Any]]
 SubsetTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
 HoursTransformer = Callable[..., Tuple[Any, Dict[str, Any]]]
 Logger = Callable[[str], None]
 
-PIPELINE_OUTPUT_DIR = Path(__file__).resolve().parent / "hyv2_subset_to_category_minimal_pipeline" / "outputs"
 EXPERIMENTS_DIR = Path(__file__).resolve().parent
 HYV2_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv2.schema.json"
 HYV3_SCHEMA_PATH = EXPERIMENTS_DIR / "hyv3.schema.json"
@@ -52,262 +89,9 @@ HYV2_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" 
 HYV3_PROMPT_PATH = EXPERIMENTS_DIR / "hyv2_subset_to_category_minimal_pipeline" / "promptv3.md"
 
 
-def default_output_path(input_path: Path) -> Path:
-    PIPELINE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return PIPELINE_OUTPUT_DIR / f"{input_path.stem}_hyv2_pipeline.json"
-
-
 def _sanitize_filename(value: str) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._")
     return sanitized or "category"
-
-
-def build_final_output_path(descriptive_output_path: Path) -> Path:
-    if descriptive_output_path.stem.endswith("_pipeline"):
-        final_name = f"{descriptive_output_path.stem[:-len('_pipeline')]}_final{descriptive_output_path.suffix}"
-    else:
-        final_name = f"{descriptive_output_path.stem}_final{descriptive_output_path.suffix}"
-    return descriptive_output_path.with_name(final_name)
-
-
-def _is_shared_role(category_role: Any) -> bool:
-    return isinstance(category_role, str) and category_role in SHARED_SECTION_ROLES
-
-
-def _category_ref(category: Dict[str, Any]) -> Optional[str]:
-    category_ref = category.get("category_ref")
-    if isinstance(category_ref, str) and category_ref:
-        return category_ref
-    return None
-
-
-def _category_items(category: Dict[str, Any]) -> List[Any]:
-    items = category.get("items")
-    return list(items) if isinstance(items, list) else []
-
-
-def _category_refs_from(value: Any) -> List[str]:
-    if not isinstance(value, list):
-        return []
-    refs: List[str] = []
-    for entry in value:
-        if isinstance(entry, str) and entry:
-            refs.append(entry)
-    return refs
-
-
-def preprocess_extracted_payload(extracted: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    preprocessed = copy.deepcopy(extracted)
-    categories = preprocessed.get("categories")
-    if not isinstance(categories, list):
-        preprocessed["categories"] = []
-        return preprocessed, []
-
-    valid_refs = {_category_ref(category) for category in categories}
-    valid_refs.discard(None)
-
-    inbound_refs: Dict[str, set[str]] = {}
-    for category in categories:
-        source_ref = _category_ref(category)
-        if not source_ref:
-            continue
-        for target_ref in _category_refs_from(category.get("modifiables_defined_in_category_refs")):
-            inbound_refs.setdefault(target_ref, set()).add(source_ref)
-
-    rewrites: List[Dict[str, Any]] = []
-    for category in categories:
-        category_ref = _category_ref(category)
-        if not category_ref:
-            continue
-        if category.get("category_role") != "normal_category":
-            continue
-        if _category_items(category):
-            continue
-        inbound = sorted(ref for ref in inbound_refs.get(category_ref, set()) if ref in valid_refs)
-        if not inbound:
-            continue
-
-        category["category_role"] = "shared_modifiers_section"
-        category["applies_to_category_refs"] = inbound
-        rewrites.append(
-            {
-                "category_ref": category_ref,
-                "from_role": "normal_category",
-                "to_role": "shared_modifiers_section",
-                "applies_to_category_refs": inbound,
-                "reason": "zero-item referenced supercategory",
-            }
-        )
-
-    return preprocessed, rewrites
-
-
-def build_category_subsets(extracted: Dict[str, Any]) -> List[Dict[str, Any]]:
-    categories = extracted.get("categories")
-    if not isinstance(categories, list):
-        return []
-
-    categories_by_ref: Dict[str, Dict[str, Any]] = {}
-    for category in categories:
-        category_ref = _category_ref(category)
-        if category_ref:
-            categories_by_ref[category_ref] = category
-
-    subset_runs: List[Dict[str, Any]] = []
-    for target_category in categories:
-        if target_category.get("category_role") != "normal_category":
-            continue
-        target_ref = _category_ref(target_category)
-        if not target_ref:
-            continue
-
-        included_refs = {target_ref}
-        for category in categories:
-            if not _is_shared_role(category.get("category_role")):
-                continue
-            if target_ref in _category_refs_from(category.get("applies_to_category_refs")):
-                shared_ref = _category_ref(category)
-                if shared_ref:
-                    included_refs.add(shared_ref)
-
-        for referenced_ref in _category_refs_from(target_category.get("modifiables_defined_in_category_refs")):
-            referenced_category = categories_by_ref.get(referenced_ref)
-            if referenced_category and _is_shared_role(referenced_category.get("category_role")):
-                included_refs.add(referenced_ref)
-
-        subset_categories = []
-        subset_category_refs = []
-        for category in categories:
-            category_ref = _category_ref(category)
-            if not category_ref or category_ref not in included_refs:
-                continue
-            subset_categories.append(copy.deepcopy(category))
-            subset_category_refs.append(category_ref)
-
-        subset_runs.append(
-            {
-                "category_ref": target_ref,
-                "category_name": target_category.get("category_name") or target_ref,
-                "subset_category_refs": subset_category_refs,
-                "subset_payload": {
-                    "categories": subset_categories,
-                },
-            }
-        )
-
-    return subset_runs
-
-
-def summarize_categories(extracted: Dict[str, Any]) -> Dict[str, int]:
-    categories = extracted.get("categories")
-    if not isinstance(categories, list):
-        return {
-            "total_category_count": 0,
-            "normal_category_count": 0,
-            "shared_section_count": 0,
-        }
-
-    normal_category_count = sum(1 for category in categories if category.get("category_role") == "normal_category")
-    shared_section_count = sum(1 for category in categories if _is_shared_role(category.get("category_role")))
-    return {
-        "total_category_count": len(categories),
-        "normal_category_count": normal_category_count,
-        "shared_section_count": shared_section_count,
-    }
-
-
-def _write_json(path: Path, payload: Dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
-def _drop_none_values(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {k: _drop_none_values(v) for k, v in value.items() if v is not None}
-    if isinstance(value, list):
-        return [_drop_none_values(v) for v in value]
-    return value
-
-
-def _normalize_name_key(value: Any) -> str:
-    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
-
-
-def _build_item_source_lookup(source_items: List[Dict[str, Any]]) -> Tuple[Dict[str, List[int]], List[bool]]:
-    lookup: Dict[str, List[int]] = {}
-    used: List[bool] = [False] * len(source_items)
-    for index, item in enumerate(source_items):
-        key = _normalize_name_key(item.get("item_name"))
-        if not key:
-            continue
-        lookup.setdefault(key, []).append(index)
-    return lookup, used
-
-
-def _consume_source_item_index(
-    *,
-    generated_name: str,
-    generated_index: int,
-    source_items: List[Dict[str, Any]],
-    source_lookup: Dict[str, List[int]],
-    source_used: List[bool],
-) -> Optional[int]:
-    key = _normalize_name_key(generated_name)
-    for candidate_index in source_lookup.get(key, []):
-        if not source_used[candidate_index]:
-            source_used[candidate_index] = True
-            return candidate_index
-
-    if generated_index < len(source_items) and not source_used[generated_index]:
-        source_used[generated_index] = True
-        return generated_index
-
-    for candidate_index in range(len(source_items)):
-        if not source_used[candidate_index]:
-            source_used[candidate_index] = True
-            return candidate_index
-    return None
-
-
-def _build_category_sort_lookup(extracted: Dict[str, Any]) -> Dict[str, int]:
-    lookup: Dict[str, int] = {}
-    categories = extracted.get("categories")
-    if not isinstance(categories, list):
-        return lookup
-    for index, category in enumerate(categories):
-        category_ref = _category_ref(category)
-        if category_ref:
-            lookup[category_ref] = index
-    return lookup
-
-
-def _build_merged_items(
-    *,
-    generated_items: List[Dict[str, Any]],
-    source_category: Dict[str, Any],
-) -> List[Dict[str, Any]]:
-    source_items = _category_items(source_category)
-    source_lookup, source_used = _build_item_source_lookup(source_items)
-    merged_items: List[Dict[str, Any]] = []
-
-    for item_index, item in enumerate(generated_items):
-        source_index = _consume_source_item_index(
-            generated_name=str(item.get("name") or ""),
-            generated_index=item_index,
-            source_items=source_items,
-            source_lookup=source_lookup,
-            source_used=source_used,
-        )
-        source_item = source_items[source_index] if source_index is not None and source_index < len(source_items) else {}
-        merged_items.append(
-            _drop_none_values(
-                {
-                    **item,
-                    "itemDescription": str(source_item.get("item_description") or ""),
-                }
-            )
-        )
-    return merged_items
 
 
 def run_hyv2_pipeline(
@@ -334,8 +118,16 @@ def run_hyv2_pipeline(
     requested_output_path = output_path.resolve() if output_path else default_output_path(input_path)
     descriptive_output_path = next_available_path(requested_output_path)
     final_output_path = next_available_path(build_final_output_path(descriptive_output_path))
+    postprocessed_minimal_output_path = next_available_path(
+        build_postprocessed_minimal_output_path(descriptive_output_path)
+    )
+    intermediate_output_path = next_available_path(build_intermediate_output_path(descriptive_output_path))
+    expected_output_path = next_available_path(build_expected_output_path(descriptive_output_path))
     descriptive_output_path.parent.mkdir(parents=True, exist_ok=True)
     final_output_path.parent.mkdir(parents=True, exist_ok=True)
+    postprocessed_minimal_output_path.parent.mkdir(parents=True, exist_ok=True)
+    intermediate_output_path.parent.mkdir(parents=True, exist_ok=True)
+    expected_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger(f"Parsing menu: {input_path}")
     logger(f"Extracting with schema: {schema_path}")
@@ -374,11 +166,11 @@ def run_hyv2_pipeline(
     logger("Building subsets")
     subset_runs = build_category_subsets(preprocessed_extracted)
     logger(f"Built {len(subset_runs)} category subsets")
-    category_sort_lookup = _build_category_sort_lookup(preprocessed_extracted)
+    category_sort_lookup = build_category_sort_lookup(preprocessed_extracted)
     categories_by_ref = {
-        category_ref: category
+        current_ref: category
         for category in preprocessed_extracted.get("categories", [])
-        if isinstance(category, dict) and (category_ref := _category_ref(category))
+        if isinstance(category, dict) and (current_ref := category_ref(category))
     }
 
     hours_input_payload = build_hours_input_payload(preprocessed_extracted)
@@ -403,7 +195,7 @@ def run_hyv2_pipeline(
     if keep_intermediates:
         intermediates_dir = descriptive_output_path.with_suffix("")
         intermediates_dir.mkdir(parents=True, exist_ok=True)
-        _write_json(
+        write_json(
             intermediates_dir / "preprocessed_extracted.json",
             {"extracted": preprocessed_extracted, "rewrites": rewrites},
         )
@@ -425,19 +217,19 @@ def run_hyv2_pipeline(
     if isinstance(hours_total_tokens, int):
         total_tokens += hours_total_tokens
     for index, subset_run in enumerate(subset_runs, start=1):
-        category_ref = subset_run["category_ref"]
-        category_name = subset_run["category_name"]
+        current_category_ref = subset_run["category_ref"]
+        current_category_name = subset_run["category_name"]
         subset_payload = subset_run["subset_payload"]
         subset_category_refs = subset_run["subset_category_refs"]
 
         logger(
             f"Transforming category {index}/{len(subset_runs)}: "
-            f"{category_name} ({category_ref}) with {len(subset_category_refs)} subset categories"
+            f"{current_category_name} ({current_category_ref}) with {len(subset_category_refs)} subset categories"
         )
 
         if intermediates_dir is not None:
-            safe_ref = _sanitize_filename(category_ref)
-            _write_json(intermediates_dir / f"{safe_ref}_subset.json", subset_payload)
+            safe_ref = _sanitize_filename(current_category_ref)
+            write_json(intermediates_dir / f"{safe_ref}_subset.json", subset_payload)
 
         try:
             validated, usage = subset_transformer(
@@ -450,8 +242,8 @@ def run_hyv2_pipeline(
             )
             output = validated.model_dump(by_alias=True)
             category_run = {
-                "category_ref": category_ref,
-                "category_name": category_name,
+                "category_ref": current_category_ref,
+                "category_name": current_category_name,
                 "subset_category_refs": subset_category_refs,
                 "status": "success",
                 "usage": usage,
@@ -469,22 +261,22 @@ def run_hyv2_pipeline(
             if isinstance(run_total_tokens, int):
                 total_tokens += run_total_tokens
             logger(
-                f"Category succeeded: {category_ref}; "
+                f"Category succeeded: {current_category_ref}; "
                 f"subset_size={len(subset_category_refs)}; "
                 f"total_tokens={run_total_tokens if run_total_tokens is not None else 'unknown'}"
             )
         except Exception as exc:
             category_runs.append(
                 {
-                    "category_ref": category_ref,
-                    "category_name": category_name,
+                    "category_ref": current_category_ref,
+                    "category_name": current_category_name,
                     "subset_category_refs": subset_category_refs,
                     "status": "error",
                     "error": str(exc),
                 }
             )
             failure_count += 1
-            logger(f"Category failed: {category_ref} ({category_name}): {exc}")
+            logger(f"Category failed: {current_category_ref} ({current_category_name}): {exc}")
 
     aggregate_payload = {
         "document_path": stage1_payload["document_path"],
@@ -500,6 +292,12 @@ def run_hyv2_pipeline(
             "hours_usage": hours_usage,
             "hours_output": hours_result.model_dump() if hours_result is not None else None,
             "hours_error": hours_error,
+        },
+        "stage3": {
+            "postprocessing": "menuocr_minimal_to_ir_to_expected",
+            "postprocessed_minimal_output_path": str(postprocessed_minimal_output_path),
+            "intermediate_output_path": str(intermediate_output_path),
+            "expected_output_path": str(expected_output_path),
         },
         "preprocessing": {
             "rewrites": rewrites,
@@ -518,55 +316,36 @@ def run_hyv2_pipeline(
         },
     }
 
-    category_hours_lookup: Dict[str, Dict[str, Any]] = {}
-    structured_global_hours = None
-    if hours_result is not None:
-        structured_global_hours = (
-            hours_result.global_hours.model_dump(exclude_none=True) if hours_result.global_hours else None
-        )
-        for entry in hours_result.category_hours:
-            category_hours_lookup[_normalize_name_key(entry.category_name)] = entry.hours.model_dump(
-                exclude_none=True
-            )
+    structured_global_hours, category_hours_lookup = build_category_hours_lookup(hours_result)
+    merged_final_payload = build_merged_final_payload(
+        document_path=stage1_payload["document_path"],
+        category_runs=category_runs,
+        categories_by_ref=categories_by_ref,
+        category_sort_lookup=category_sort_lookup,
+        category_hours_lookup=category_hours_lookup,
+    )
+    merged_final_payload["menu_hours"] = structured_global_hours
 
-    merged_final_payload = {
-        "document_path": stage1_payload["document_path"],
-        "menu_hours": structured_global_hours,
-        "Categories": [
-            _drop_none_values(
-                {
-                    "category_name": category_run["category_name"],
-                    "Description": str(
-                        (categories_by_ref.get(category_run["category_ref"], {}) or {}).get("category_description")
-                        or ""
-                    ),
-                    "sort": category_sort_lookup.get(category_run["category_ref"]),
-                    "category_type": (
-                        (categories_by_ref.get(category_run["category_ref"], {}) or {}).get("category_type")
-                    ),
-                    "category_sizes": category_run["output"].get("category_sizes") or [],
-                    "category_options": category_run["output"].get("category_options") or [],
-                    "category_toppings": category_run["output"].get("category_toppings"),
-                    "hours": category_hours_lookup.get(_normalize_name_key(category_run["category_name"])),
-                    "items": _build_merged_items(
-                        generated_items=category_run["output"].get("items") or [],
-                        source_category=categories_by_ref.get(category_run["category_ref"], {}) or {},
-                    ),
-                }
-            )
-            for category_run in category_runs
-            if category_run.get("status") == "success"
-        ],
-    }
+    logger("Applying menuocr postprocessing")
+    postprocessed_minimal_payload = apply_menuocr_style_postprocessing(merged_final_payload)
+    intermediate_payload, expected_payload = map_with_ir(postprocessed_minimal_payload)
 
     logger(f"Writing descriptive output to {descriptive_output_path}")
-    _write_json(descriptive_output_path, aggregate_payload)
+    write_json(descriptive_output_path, aggregate_payload)
     logger(f"Writing final merged output to {final_output_path}")
-    _write_json(final_output_path, merged_final_payload)
+    write_json(final_output_path, merged_final_payload)
+    logger(f"Writing postprocessed minimal output to {postprocessed_minimal_output_path}")
+    write_json(postprocessed_minimal_output_path, postprocessed_minimal_payload)
+    logger(f"Writing intermediate output to {intermediate_output_path}")
+    write_json(intermediate_output_path, intermediate_payload)
+    logger(f"Writing expected output to {expected_output_path}")
+    write_json(expected_output_path, expected_payload)
     logger(
         "Pipeline summary:"
         f" successes={success_count}, failures={failure_count},"
         f" total_tokens={total_tokens}, descriptive_output={descriptive_output_path},"
-        f" final_output={final_output_path}"
+        f" final_output={final_output_path},"
+        f" postprocessed_minimal_output={postprocessed_minimal_output_path},"
+        f" expected_output={expected_output_path}"
     )
     return descriptive_output_path, aggregate_payload
