@@ -39,6 +39,10 @@ def category_refs_from(value: Any) -> List[str]:
     return refs
 
 
+def is_pizza_category_type(category_type: Any) -> bool:
+    return isinstance(category_type, str) and category_type.strip().lower() == "food (pizzas)"
+
+
 def preprocess_extracted_payload(extracted: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     preprocessed = copy.deepcopy(extracted)
     categories = preprocessed.get("categories")
@@ -58,6 +62,65 @@ def preprocess_extracted_payload(extracted: Dict[str, Any]) -> Tuple[Dict[str, A
             inbound_refs.setdefault(target_ref, set()).add(source_ref)
 
     rewrites: List[Dict[str, Any]] = []
+    categories_by_ref: Dict[str, Dict[str, Any]] = {}
+    for category in categories:
+        current_ref = category_ref(category)
+        if current_ref:
+            categories_by_ref[current_ref] = category
+
+    for category in categories:
+        current_ref = category_ref(category)
+        if not current_ref:
+            continue
+        if category.get("category_role") != "normal_category":
+            continue
+        if is_pizza_category_type(category.get("category_type")):
+            continue
+
+        original_refs = category_refs_from(category.get("modifiables_defined_in_category_refs"))
+        filtered_refs = [
+            referenced_ref
+            for referenced_ref in original_refs
+            if (
+                categories_by_ref.get(referenced_ref, {}).get("category_role")
+                != "shared_toppings_section"
+            )
+        ]
+        if filtered_refs != original_refs:
+            removed_refs = [ref for ref in original_refs if ref not in filtered_refs]
+            category["modifiables_defined_in_category_refs"] = filtered_refs
+            rewrites.append(
+                {
+                    "category_ref": current_ref,
+                    "removed_category_refs": removed_refs,
+                    "reason": "removed shared toppings references from non-pizza category",
+                }
+            )
+
+    non_pizza_category_refs = {
+        current_ref
+        for current_ref, category in categories_by_ref.items()
+        if category.get("category_role") == "normal_category"
+        and not is_pizza_category_type(category.get("category_type"))
+    }
+    for category in categories:
+        if category.get("category_role") != "shared_toppings_section":
+            continue
+        original_applies_to = category_refs_from(category.get("applies_to_category_refs"))
+        filtered_applies_to = [
+            target_ref for target_ref in original_applies_to if target_ref not in non_pizza_category_refs
+        ]
+        if filtered_applies_to != original_applies_to:
+            removed_refs = [ref for ref in original_applies_to if ref not in filtered_applies_to]
+            category["applies_to_category_refs"] = filtered_applies_to
+            rewrites.append(
+                {
+                    "category_ref": category_ref(category),
+                    "removed_applies_to_category_refs": removed_refs,
+                    "reason": "removed non-pizza applies_to refs from shared toppings section",
+                }
+            )
+
     for category in categories:
         current_ref = category_ref(category)
         if not current_ref:
@@ -178,6 +241,7 @@ __all__ = [
     "category_items",
     "category_ref",
     "category_refs_from",
+    "is_pizza_category_type",
     "is_shared_role",
     "preprocess_extracted_payload",
     "summarize_categories",
