@@ -29,7 +29,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--model",
         choices=list(MODEL_CONFIG.keys()),
-        default="gpt-5-mini",
+        default="gpt-4o",
         help="Azure OpenAI deployment to use.",
     )
     parser.add_argument(
