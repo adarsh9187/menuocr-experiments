@@ -82,7 +82,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--generation-mode",
         choices=["json_mode", "structured"],
-        default="json_mode",
+        default="structured",
         help="Generation strategy for the per-category transformer.",
     )
     parser.add_argument(

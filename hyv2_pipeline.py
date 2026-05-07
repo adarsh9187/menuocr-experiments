@@ -150,11 +150,27 @@ def run_hyv2_pipeline(
         f", rewrites={len(rewrites)}"
     )
     for rewrite in rewrites:
-        logger(
-            "Rewrote zero-item referenced supercategory "
-            f"{rewrite['category_ref']} -> {rewrite['to_role']}; applies to: "
-            f"{', '.join(rewrite['applies_to_category_refs'])}"
-        )
+        reason = rewrite.get("reason", "rewrite")
+        if reason == "zero-item referenced supercategory":
+            logger(
+                "Rewrote zero-item referenced supercategory "
+                f"{rewrite.get('category_ref')} -> {rewrite.get('to_role')}; applies to: "
+                f"{', '.join(rewrite.get('applies_to_category_refs', []))}"
+            )
+        elif reason == "removed shared toppings references from non-pizza category":
+            logger(
+                "Removed shared toppings refs from non-pizza category "
+                f"{rewrite.get('category_ref')}: "
+                f"{', '.join(rewrite.get('removed_category_refs', []))}"
+            )
+        elif reason == "removed non-pizza applies_to refs from shared toppings section":
+            logger(
+                "Removed non-pizza applies-to refs from shared toppings section "
+                f"{rewrite.get('category_ref')}: "
+                f"{', '.join(rewrite.get('removed_applies_to_category_refs', []))}"
+            )
+        else:
+            logger(f"Applied preprocessing rewrite for {rewrite.get('category_ref')}: {reason}")
 
     logger("Building subsets")
     subset_runs = build_category_subsets(preprocessed_extracted)
